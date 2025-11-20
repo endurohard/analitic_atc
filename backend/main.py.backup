@@ -1,0 +1,403 @@
+from fastapi import FastAPI, Depends, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy.orm import Session
+from sqlalchemy import text
+from typing import List
+import os
+
+from database import get_db, engine
+import models
+import schemas
+
+# Создание таблиц (если нужно)
+# models.Base.metadata.create_all(bind=engine)
+
+app = FastAPI(
+    title="АТС Аналитика API",
+    description="API для аналитики телефонных звонков",
+    version="1.0.0"
+)
+
+# Настройка CORS
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:3000", "http://localhost:3001", "http://frontend:3000"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+@app.get("/")
+def read_root():
+    return {
+        "message": "АТС Аналитика API",
+        "version": "1.0.0",
+        "status": "running"
+    }
+
+@app.get("/api/health")
+def health_check(db: Session = Depends(get_db)):
+    """Проверка подключения к базе данных"""
+    try:
+        db.execute(text("SELECT 1"))
+        return {"status": "healthy", "database": "connected"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Database connection error: {str(e)}")
+
+@app.get("/api/organizations")
+def get_user_organizations(user_id: int, db: Session = Depends(get_db)):
+    """Получение списка организаций пользователя"""
+    user = db.query(models.User).filter(models.User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    organizations = []
+    for user_org in user.organizations:
+        organizations.append({
+            "id": user_org.organization.id,
+            "orgId": user_org.organization.orgId,  # Числовой ID
+            "name": user_org.organization.name,
+            "role": user_org.role
+        })
+
+    return organizations
+
+@app.get("/api/calls", response_model=List[schemas.Call])
+def get_calls(
+    orgId: int,  # Теперь числовой параметр
+    skip: int = 0,
+    limit: int = 100,
+    status: str = None,
+    direction: str = None,
+    db: Session = Depends(get_db)
+):
+    """Получение списка звонков для организации. Пример: orgId=5 для Salat"""
+    query = db.query(models.Call).filter(models.Call.orgId == orgId)
+
+    if status:
+        query = query.filter(models.Call.status == status)
+    if direction:
+        query = query.filter(models.Call.direction == direction)
+
+    calls = query.order_by(models.Call.call_date.desc()).offset(skip).limit(limit).all()
+    return calls
+
+@app.get("/api/calls/{call_id}", response_model=schemas.Call)
+def get_call(call_id: int, orgId: int, db: Session = Depends(get_db)):
+    """Получение информации о конкретном звонке"""
+    call = db.query(models.Call).filter(
+        models.Call.id == call_id,
+        models.Call.orgId == orgId
+    ).first()
+    if call is None:
+        raise HTTPException(status_code=404, detail="Call not found")
+    return call
+
+@app.get("/api/calls/unprocessed")
+def get_unprocessed_calls(orgId: int, skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
+    """Получение необработанных звонков (пропущенные и не перезвоненные)"""
+    calls = db.query(models.Call).filter(
+        models.Call.orgId == orgId,
+        models.Call.status == "missed",
+        models.Call.is_redialed == False
+    ).order_by(models.Call.call_date.desc()).offset(skip).limit(limit).all()
+    return calls
+
+@app.get("/api/statistics/summary")
+def get_statistics_summary(orgId: int, db: Session = Depends(get_db)):
+    """
+    Получение общей статистики для организации
+    Пример: /api/statistics/summary?orgId=5 для Salat
+    """
+    try:
+        total_calls = db.query(models.Call).filter(models.Call.orgId == orgId).count()
+        answered_calls = db.query(models.Call).filter(
+            models.Call.orgId == orgId,
+            models.Call.status == "answered"
+        ).count()
+        missed_calls = db.query(models.Call).filter(
+            models.Call.orgId == orgId,
+            models.Call.status == "missed"
+        ).count()
+        not_redialed = db.query(models.Call).filter(
+            models.Call.orgId == orgId,
+            models.Call.status == "missed",
+            models.Call.is_redialed == False
+        ).count()
+
+        return {
+            "total_calls": total_calls,
+            "answered_calls": answered_calls,
+            "missed_calls": missed_calls,
+            "not_redialed": not_redialed
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/statistics/by-date")
+def get_statistics_by_date(
+    orgId: int,
+    start_date: str = None,
+    end_date: str = None,
+    db: Session = Depends(get_db)
+):
+    """Статистика по датам для организации"""
+    from datetime import datetime
+    from sqlalchemy import func
+
+    query = db.query(models.Call).filter(models.Call.orgId == orgId)
+
+    if start_date:
+        query = query.filter(models.Call.call_date >= datetime.fromisoformat(start_date))
+    if end_date:
+        query = query.filter(models.Call.call_date <= datetime.fromisoformat(end_date))
+
+    calls = query.all()
+
+    return {
+        "total_calls": len(calls),
+        "start_date": start_date,
+        "end_date": end_date
+    }
+
+# ============================================
+# ADMIN ENDPOINTS - Управление организациями
+# ============================================
+
+@app.get("/api/admin/organizations")
+def admin_get_all_organizations(db: Session = Depends(get_db)):
+    """Получить все организации (только для администратора)"""
+    try:
+        organizations = db.query(models.Organization).order_by(models.Organization.created_at.desc()).all()
+        return [{
+            "id": org.id,
+            "orgId": org.orgId,
+            "name": org.name,
+            "description": org.description,
+            "created_at": org.created_at,
+            "updated_at": org.updated_at
+        } for org in organizations]
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/admin/organizations")
+def admin_create_organization(org: schemas.OrganizationCreate, db: Session = Depends(get_db)):
+    """Создать новую организацию (только для администратора)"""
+    try:
+        # Проверка уникальности orgId
+        existing = db.query(models.Organization).filter(models.Organization.orgId == org.orgId).first()
+        if existing:
+            raise HTTPException(status_code=400, detail=f"Organization with orgId={org.orgId} already exists")
+
+        new_org = models.Organization(
+            orgId=org.orgId,
+            name=org.name,
+            description=org.description
+        )
+        db.add(new_org)
+        db.commit()
+        db.refresh(new_org)
+
+        return {
+            "id": new_org.id,
+            "orgId": new_org.orgId,
+            "name": new_org.name,
+            "description": new_org.description,
+            "message": "Organization created successfully"
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.put("/api/admin/organizations/{org_id}")
+def admin_update_organization(org_id: int, org: schemas.OrganizationUpdate, db: Session = Depends(get_db)):
+    """Обновить организацию (только для администратора)"""
+    try:
+        db_org = db.query(models.Organization).filter(models.Organization.id == org_id).first()
+        if not db_org:
+            raise HTTPException(status_code=404, detail="Organization not found")
+
+        if org.name is not None:
+            db_org.name = org.name
+        if org.description is not None:
+            db_org.description = org.description
+
+        db.commit()
+        db.refresh(db_org)
+
+        return {
+            "id": db_org.id,
+            "orgId": db_org.orgId,
+            "name": db_org.name,
+            "description": db_org.description,
+            "message": "Organization updated successfully"
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.delete("/api/admin/organizations/{org_id}")
+def admin_delete_organization(org_id: int, db: Session = Depends(get_db)):
+    """Удалить организацию (только для администратора)"""
+    try:
+        db_org = db.query(models.Organization).filter(models.Organization.id == org_id).first()
+        if not db_org:
+            raise HTTPException(status_code=404, detail="Organization not found")
+
+        org_name = db_org.name
+        db.delete(db_org)
+        db.commit()
+
+        return {"message": f"Organization '{org_name}' deleted successfully"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/admin/database/test")
+def admin_test_database_connection(db: Session = Depends(get_db)):
+    """Тестировать подключение к базе данных"""
+    try:
+        db.execute(text("SELECT 1"))
+
+        # Получить информацию о БД
+        result = db.execute(text("""
+            SELECT
+                current_database() as database,
+                current_user as user,
+                version() as version
+        """))
+        row = result.fetchone()
+
+        return {
+            "status": "connected",
+            "database": row[0],
+            "user": row[1],
+            "version": row[2][:50] + "..."  # Обрезаем длинную строку версии
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Database connection failed: {str(e)}")
+
+@app.get("/api/admin/database/stats")
+def admin_get_database_stats(db: Session = Depends(get_db)):
+    """Получить статистику базы данных"""
+    try:
+        stats = {}
+
+        # Количество организаций
+        stats['organizations_count'] = db.query(models.Organization).count()
+
+        # Количество звонков
+        stats['calls_count'] = db.query(models.Call).count()
+
+        # Количество пользователей
+        stats['users_count'] = db.query(models.User).count()
+
+        # Последняя активность
+        last_call = db.query(models.Call).order_by(models.Call.created_at.desc()).first()
+        stats['last_call_date'] = last_call.created_at if last_call else None
+
+        return stats
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/admin/database/config")
+def admin_get_database_config():
+    """Получить текущие настройки подключения к БД"""
+    return {
+        "host": os.getenv('POSTGRES_HOST', 'localhost'),
+        "port": os.getenv('POSTGRES_PORT', '5432'),
+        "database": os.getenv('POSTGRES_DB', 'atc_analytics'),
+        "user": os.getenv('POSTGRES_USER', 'postgres'),
+        # Пароль не возвращаем из соображений безопасности
+        "password_set": bool(os.getenv('POSTGRES_PASSWORD'))
+    }
+
+@app.post("/api/admin/database/config")
+def admin_update_database_config(config: dict):
+    """Обновить настройки подключения к БД"""
+    try:
+        env_path = os.path.join(os.path.dirname(__file__), '..', '.env')
+
+        # Читаем текущий .env файл
+        env_vars = {}
+        if os.path.exists(env_path):
+            with open(env_path, 'r') as f:
+                for line in f:
+                    line = line.strip()
+                    if line and not line.startswith('#') and '=' in line:
+                        key, value = line.split('=', 1)
+                        env_vars[key] = value
+
+        # Обновляем значения
+        if 'host' in config:
+            env_vars['POSTGRES_HOST'] = config['host']
+        if 'port' in config:
+            env_vars['POSTGRES_PORT'] = str(config['port'])
+        if 'database' in config:
+            env_vars['POSTGRES_DB'] = config['database']
+        if 'user' in config:
+            env_vars['POSTGRES_USER'] = config['user']
+        if 'password' in config and config['password']:
+            env_vars['POSTGRES_PASSWORD'] = config['password']
+
+        # Сохраняем обратно в .env
+        with open(env_path, 'w') as f:
+            f.write("# PostgreSQL Configuration\n")
+            f.write("# Для подключения к внешней базе данных укажите параметры вашего сервера\n")
+            f.write(f"POSTGRES_HOST={env_vars.get('POSTGRES_HOST', 'localhost')}\n")
+            f.write(f"POSTGRES_PORT={env_vars.get('POSTGRES_PORT', '5432')}\n")
+            f.write(f"POSTGRES_USER={env_vars.get('POSTGRES_USER', 'postgres')}\n")
+            f.write(f"POSTGRES_PASSWORD={env_vars.get('POSTGRES_PASSWORD', 'password')}\n")
+            f.write(f"POSTGRES_DB={env_vars.get('POSTGRES_DB', 'atc_analytics')}\n")
+            f.write("\n# Application Configuration\n")
+            f.write(f"SECRET_KEY={env_vars.get('SECRET_KEY', 'your_secret_key_change_in_production')}\n")
+            f.write(f"DEBUG={env_vars.get('DEBUG', 'True')}\n")
+
+        return {
+            "message": "Настройки сохранены. Для применения изменений перезапустите backend контейнер.",
+            "restart_required": True
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Ошибка сохранения настроек: {str(e)}")
+
+@app.post("/api/admin/database/test-connection")
+def admin_test_custom_connection(config: dict):
+    """Проверить подключение с заданными параметрами БД"""
+    import psycopg2
+
+    try:
+        conn = psycopg2.connect(
+            host=config.get('host', 'localhost'),
+            port=config.get('port', 5432),
+            user=config.get('user', 'postgres'),
+            password=config.get('password', ''),
+            database=config.get('database', 'atc_analytics'),
+            connect_timeout=5
+        )
+
+        cursor = conn.cursor()
+        cursor.execute("SELECT version()")
+        version = cursor.fetchone()[0]
+        cursor.close()
+        conn.close()
+
+        return {
+            "status": "success",
+            "message": "Подключение успешно!",
+            "version": version[:100]
+        }
+    except Exception as e:
+        return {
+            "status": "error",
+            "message": f"Ошибка подключения: {str(e)}"
+        }
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8000)

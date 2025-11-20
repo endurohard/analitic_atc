@@ -1,0 +1,74 @@
+version: '3.8'
+
+services:
+  # Frontend - React приложение
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: atc_analytics_frontend
+    ports:
+      - "3001:3001"
+    environment:
+      - REACT_APP_API_URL=http://localhost:8000
+      - PORT=3001
+      - HOST=0.0.0.0
+      - WATCHPACK_POLLING=true
+      - DANGEROUSLY_DISABLE_HOST_CHECK=true
+      - WDS_SOCKET_PORT=3001
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    depends_on:
+      - backend
+    networks:
+      - atc_network
+
+  # Backend - FastAPI приложение
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: atc_analytics_backend
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:${POSTGRES_PORT}/${POSTGRES_DB}
+      - POSTGRES_HOST=${POSTGRES_HOST}
+      - POSTGRES_PORT=${POSTGRES_PORT}
+    env_file:
+      - .env
+    volumes:
+      - ./backend:/app
+    networks:
+      - atc_network
+    restart: unless-stopped
+
+  # PostgreSQL - база данных (закомментировано, используем внешнюю БД)
+  # postgres:
+  #   image: postgres:15-alpine
+  #   container_name: atc_analytics_db
+  #   ports:
+  #     - "5432:5432"
+  #   environment:
+  #     - POSTGRES_USER=${POSTGRES_USER}
+  #     - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+  #     - POSTGRES_DB=${POSTGRES_DB}
+  #   volumes:
+  #     - postgres_data:/var/lib/postgresql/data
+  #     - ./database_schema.sql:/docker-entrypoint-initdb.d/schema.sql
+  #   networks:
+  #     - atc_network
+  #   restart: unless-stopped
+  #   healthcheck:
+  #     test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
+  #     interval: 5s
+  #     timeout: 5s
+  #     retries: 5
+
+networks:
+  atc_network:
+    driver: bridge
+
+volumes:
+  postgres_data:
