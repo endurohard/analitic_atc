@@ -10,7 +10,8 @@ services:
     ports:
       - "3001:3001"
     environment:
-      - REACT_APP_API_URL=http://localhost:8000
+      - REACT_APP_API_URL=/analitic
+      - PUBLIC_URL=/analitic
       - PORT=3001
       - HOST=0.0.0.0
       - WATCHPACK_POLLING=true
@@ -23,6 +24,7 @@ services:
       - backend
     networks:
       - atc_network
+      - infobotit_bot_app_net
 
   # Backend - FastAPI приложение
   backend:
@@ -42,6 +44,7 @@ services:
       - ./backend:/app
     networks:
       - atc_network
+      - infobotit_bot_app_net
     restart: unless-stopped
 
   # PostgreSQL - база данных (закомментировано, используем внешнюю БД)
@@ -69,6 +72,8 @@ services:
 networks:
   atc_network:
     driver: bridge
+  infobotit_bot_app_net:
+    external: true
 
 volumes:
   postgres_data:

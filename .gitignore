@@ -44,3 +44,4 @@ build/
 
 # Docker
 *.log
+backend/uploads

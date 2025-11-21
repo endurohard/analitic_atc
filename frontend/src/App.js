@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import './App.css';
+import Welcome from './components/Welcome';
 import Login from './components/Login';
 import Dashboard from './components/Dashboard';
+import MobileDashboard from './components/MobileDashboard';
 import OrganizationSelector from './components/OrganizationSelector';
 import AdminPanel from './components/AdminPanel';
 
@@ -10,6 +12,7 @@ function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [currentOrganization, setCurrentOrganization] = useState(null);
   const [user, setUser] = useState(null);
+  const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
 
   useEffect(() => {
     // Проверка сохраненной сессии
@@ -41,8 +44,16 @@ function App() {
 
     window.addEventListener('storage', handleStorageChange);
 
+    // Отслеживание изменения размера окна
+    const handleResize = () => {
+      setIsMobile(window.innerWidth <= 768);
+    };
+
+    window.addEventListener('resize', handleResize);
+
     return () => {
       window.removeEventListener('storage', handleStorageChange);
+      window.removeEventListener('resize', handleResize);
     };
   }, []);
 
@@ -70,30 +81,52 @@ function App() {
     localStorage.setItem('currentOrganization', JSON.stringify(org));
   };
 
+  // Выбор компонента Dashboard в зависимости от устройства
+  const DashboardComponent = isMobile ? MobileDashboard : Dashboard;
+
   return (
-    <Router>
+    <Router basename="/analitic">
       <div className="App">
         <Routes>
-          <Route
-            path="/login"
-            element={
-              isAuthenticated ?
-              <Navigate to="/" /> :
-              <Login onLogin={handleLogin} />
-            }
-          />
           <Route
             path="/"
             element={
               !isAuthenticated ?
-              <Navigate to="/login" /> :
+              <Welcome /> :
               !currentOrganization ?
               <OrganizationSelector
                 user={user}
                 onSelectOrganization={handleOrganizationChange}
                 onLogout={handleLogout}
               /> :
-              <Dashboard
+              <DashboardComponent
+                user={user}
+                organization={currentOrganization}
+                onLogout={handleLogout}
+                onChangeOrganization={() => setCurrentOrganization(null)}
+              />
+            }
+          />
+          <Route
+            path="/login"
+            element={
+              isAuthenticated ?
+              <Navigate to="/dashboard" /> :
+              <Login onLogin={handleLogin} />
+            }
+          />
+          <Route
+            path="/dashboard"
+            element={
+              !isAuthenticated ?
+              <Navigate to="/" /> :
+              !currentOrganization ?
+              <OrganizationSelector
+                user={user}
+                onSelectOrganization={handleOrganizationChange}
+                onLogout={handleLogout}
+              /> :
+              <DashboardComponent
                 user={user}
                 organization={currentOrganization}
                 onLogout={handleLogout}

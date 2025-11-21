@@ -3,6 +3,10 @@
   background-color: #f5f5f5;
 }
 
+.mobile-menu-overlay {
+  display: none;
+}
+
 .dashboard-header {
   background: white;
   padding: 12px 16px;
@@ -19,6 +23,25 @@
   display: flex;
   align-items: center;
   gap: 12px;
+}
+
+.hamburger-btn {
+  display: none;
+  background: none;
+  border: none;
+  color: #333;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  transition: background-color 0.2s;
+}
+
+.hamburger-btn:hover {
+  background-color: rgba(0, 0, 0, 0.05);
+}
+
+.hamburger-btn:active {
+  background-color: rgba(0, 0, 0, 0.1);
 }
 
 .org-badge {
@@ -212,10 +235,48 @@
 @media (max-width: 768px) {
   .dashboard-header {
     padding: 10px 12px;
+    flex-wrap: wrap;
+  }
+
+  .mobile-menu-overlay {
+    display: block;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 98;
+    animation: fadeIn 0.3s ease;
+  }
+
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+
+  .hamburger-btn {
+    display: block;
   }
 
   .header-left {
     gap: 8px;
+    flex: 1;
+    min-width: 0;
+  }
+
+  .org-badge {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .org-badge img {
+    max-height: 40px !important;
+    max-width: 120px !important;
   }
 
   .org-badge svg {
@@ -228,19 +289,57 @@
     flex-direction: column;
     align-items: flex-start;
     gap: 2px;
+    overflow: hidden;
   }
 
   .user-name {
     font-size: 10px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
   .header-right {
-    gap: 6px;
+    position: fixed;
+    top: 52px;
+    right: -100%;
+    width: 280px;
+    max-width: 85vw;
+    background: white;
+    box-shadow: -2px 0 8px rgba(0, 0, 0, 0.15);
+    padding: 16px;
+    transition: right 0.3s ease;
+    flex-direction: column;
+    gap: 12px;
+    align-items: stretch;
+    z-index: 99;
+    max-height: calc(100vh - 52px);
+    overflow-y: auto;
+  }
+
+  .header-right.mobile-menu-open {
+    right: 0;
+  }
+
+  .header-right .btn {
+    font-size: 12px;
+    padding: 10px 12px;
+    white-space: nowrap;
+    width: 100%;
+    justify-content: center;
+  }
+
+  .header-right .time-selector {
+    width: 100%;
+    font-size: 13px;
+    padding: 10px 12px;
+    min-width: auto;
   }
 
   .time-selector {
     font-size: 11px;
     padding: 4px 6px;
+    min-width: auto;
   }
 
   .dashboard-content {
@@ -254,6 +353,11 @@
 
   .section-header {
     padding: 10px 12px;
+    cursor: default;
+  }
+
+  .section-header::after {
+    display: none;
   }
 
   .section-header h3 {
@@ -264,6 +368,16 @@
     padding: 30px 12px;
     font-size: 12px;
   }
+
+  /* Отключаем перетаскивание на мобильных */
+  .react-grid-item {
+    position: relative !important;
+    transform: none !important;
+  }
+
+  .react-grid-layout {
+    height: auto !important;
+  }
 }
 
 /* Small Mobile */
@@ -272,14 +386,36 @@
     padding: 8px 10px;
   }
 
+  .header-left {
+    flex: 1 1 100%;
+    margin-bottom: 8px;
+  }
+
+  .header-right {
+    flex: 1 1 100%;
+    justify-content: space-between;
+  }
+
   .org-badge h2 {
     font-size: 12px;
+  }
+
+  .org-badge img {
+    max-height: 35px !important;
+    max-width: 100px !important;
   }
 
   .time-selector {
     font-size: 10px;
     padding: 4px 6px;
-    min-width: 80px;
+    min-width: 70px;
+    flex: 1;
+    max-width: 120px;
+  }
+
+  .header-right .btn {
+    font-size: 10px;
+    padding: 4px 6px;
   }
 
   .dashboard-content {

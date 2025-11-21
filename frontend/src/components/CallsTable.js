@@ -4,7 +4,7 @@ import ContextMenu from './ContextMenu';
 import EditCallModal from './EditCallModal';
 import AudioPlayer from './AudioPlayer';
 
-const CallsTable = ({ calls, type, orgId, onCallUpdated, user }) => {
+const CallsTable = ({ calls, type, orgId, organization, onCallUpdated, user, columnWidths: propsColumnWidths, setColumnWidths: propsSetColumnWidths, onColumnWidthsChange }) => {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 15;
   const [contextMenu, setContextMenu] = useState(null);
@@ -12,9 +12,40 @@ const CallsTable = ({ calls, type, orgId, onCallUpdated, user }) => {
   const [columns, setColumns] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [editModalOpen, setEditModalOpen] = useState(false);
+  const [resizingColumn, setResizingColumn] = useState(null);
+
+  // Локальный state для columnWidths (если не передан через props)
+  const [localColumnWidths, setLocalColumnWidths] = useState({});
+
+  // Используем props если передан, иначе локальный state
+  const columnWidths = propsColumnWidths || localColumnWidths;
+  const setColumnWidths = propsSetColumnWidths || setLocalColumnWidths;
 
   // Проверка, является ли пользователь администратором
   const isAdmin = user?.organizations?.some(org => org.role === 'admin') || false;
+
+  // Получаем phone_mappings из organization
+  const phoneMappings = organization?.phone_mappings || [];
+
+  // Функция получения названия из маппинга по номеру телефона
+  const getPhoneMappingName = (phone) => {
+    if (!phone || phoneMappings.length === 0) return null;
+
+    // Нормализуем номер для поиска (убираем все нецифровые символы)
+    const normalizedPhone = String(phone).replace(/\D/g, '');
+
+    // Ищем маппинг
+    const mapping = phoneMappings.find(m => {
+      const mappingPhone = String(m.phone_number).replace(/\D/g, '');
+      return normalizedPhone.includes(mappingPhone) || mappingPhone.includes(normalizedPhone);
+    });
+
+    return mapping ? mapping.display_name : null;
+  };
+
+  // Проверяем, есть ли хотя бы один звонок с маппингом для callto1 и callto2
+  const hasCallto1Mapping = calls.some(call => call.callto1 && getPhoneMappingName(call.callto1));
+  const hasCallto2Mapping = calls.some(call => call.callto2 && getPhoneMappingName(call.callto2));
 
   // Функция форматирования номера телефона: 9633707007 → +79633707007
   const formatPhoneNumber = (phone) => {
@@ -65,6 +96,53 @@ const CallsTable = ({ calls, type, orgId, onCallUpdated, user }) => {
       setCurrentPage(1);
     }
   }, [searchQuery, type]);
+
+  // Обработчики для изменения размера колонок
+  const handleMouseDown = (columnKey, e) => {
+    e.preventDefault();
+    const currentWidth = columnWidths[columnKey] || e.target.parentElement.offsetWidth;
+    // Устанавливаем минимальную ширину для колонки audio
+    const minWidth = columnKey === 'audio' ? 300 : 50;
+    setResizingColumn({
+      key: columnKey,
+      startX: e.clientX,
+      startWidth: Math.max(minWidth, currentWidth)
+    });
+  };
+
+  useEffect(() => {
+    if (!resizingColumn) return;
+
+    const handleMouseMove = (e) => {
+      const diff = e.clientX - resizingColumn.startX;
+      // Устанавливаем минимальную ширину для каждой колонки
+      const minWidth = resizingColumn.key === 'audio' ? 300 : 50;
+      const newWidth = Math.max(minWidth, resizingColumn.startWidth + diff);
+      setColumnWidths(prev => ({
+        ...prev,
+        [resizingColumn.key]: newWidth
+      }));
+    };
+
+    const handleMouseUp = () => {
+      setResizingColumn(null);
+      // Сохраняем новые размеры колонок после завершения изменения размера
+      if (onColumnWidthsChange) {
+        setColumnWidths(prev => {
+          onColumnWidthsChange(prev);
+          return prev;
+        });
+      }
+    };
+
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [resizingColumn, onColumnWidthsChange]);
 
   // Функция для скачивания записи
   const handleDownload = (recording) => {
@@ -206,6 +284,9 @@ const CallsTable = ({ calls, type, orgId, onCallUpdated, user }) => {
           <AudioPlayer
             src={`https://itatc.ru/app/download-url/${call.recording}`}
             onDownload={() => handleDownload(call.recording)}
+            phoneNumber={call.number}
+            callDateTime={call.datetime}
+            callType={call.type}
           />
         ) : (
           <span className="no-recording">Нет записи</span>
@@ -233,13 +314,21 @@ const CallsTable = ({ calls, type, orgId, onCallUpdated, user }) => {
 
       case 'text':
         if (column.sourceField === 'number' || column.sourceField === 'reserveMobile') {
-          return <span className="number-cell">{formatPhoneNumber(value)}</span>;
+          const mappingName = getPhoneMappingName(value);
+          return (
+            <span className="number-cell">
+              {formatPhoneNumber(value)}
+              {mappingName && <span className="mapping-name"> ({mappingName})</span>}
+            </span>
+          );
         }
         if (column.sourceField === 'not_redialed') {
           return value ? 'Не перезвонили' : '';
         }
         // Для колонки "Фундук" (callto1) показываем значение или "-" если пусто
         if (column.sourceField === 'callto1' || column.sourceField === 'callto2') {
+          const mappingName = getPhoneMappingName(value);
+          if (mappingName) return mappingName;
           return value || '-';
         }
         return value || '';
@@ -385,18 +474,70 @@ const CallsTable = ({ calls, type, orgId, onCallUpdated, user }) => {
           <thead>
             <tr>
               {columns.length > 0 ? (
-                columns.map((column) => (
-                  <th key={column.key}>{column.label}</th>
-                ))
+                columns.map((column) => {
+                  // Применяем минимальную ширину для колонки audio
+                  const minWidth = column.key === 'audio' || column.type === 'audio' ? 300 : 50;
+                  const savedWidth = columnWidths[column.key];
+                  const width = savedWidth ? Math.max(minWidth, savedWidth) : 'auto';
+
+                  return (
+                    <th
+                      key={column.key}
+                      style={{
+                        width: width,
+                        position: 'relative'
+                      }}
+                    >
+                      {column.label}
+                      <div
+                        className="column-resizer"
+                        onMouseDown={(e) => handleMouseDown(column.key, e)}
+                      />
+                    </th>
+                  );
+                })
               ) : (
                 // Fallback to hardcoded columns if dynamic config not loaded
                 <>
-                  <th>Прослушать</th>
-                  <th>Статус</th>
-                  <th>Номер</th>
-                  <th>Тип</th>
-                  <th>Время звонка ↓</th>
-                  <th>Не перезвонили</th>
+                  <th style={{
+                    width: columnWidths['audio'] ? Math.max(300, columnWidths['audio']) : 'auto',
+                    position: 'relative'
+                  }}>
+                    Прослушать
+                    <div className="column-resizer" onMouseDown={(e) => handleMouseDown('audio', e)} />
+                  </th>
+                  <th style={{ width: columnWidths['status'] || 'auto', position: 'relative' }}>
+                    Статус
+                    <div className="column-resizer" onMouseDown={(e) => handleMouseDown('status', e)} />
+                  </th>
+                  <th style={{ width: columnWidths['number'] || 'auto', position: 'relative' }}>
+                    Номер
+                    <div className="column-resizer" onMouseDown={(e) => handleMouseDown('number', e)} />
+                  </th>
+                  {hasCallto1Mapping && (
+                    <th style={{ width: columnWidths['callto1'] || 'auto', position: 'relative' }}>
+                      Внутр. 1
+                      <div className="column-resizer" onMouseDown={(e) => handleMouseDown('callto1', e)} />
+                    </th>
+                  )}
+                  {hasCallto2Mapping && (
+                    <th style={{ width: columnWidths['callto2'] || 'auto', position: 'relative' }}>
+                      Внутр. 2
+                      <div className="column-resizer" onMouseDown={(e) => handleMouseDown('callto2', e)} />
+                    </th>
+                  )}
+                  <th style={{ width: columnWidths['type'] || 'auto', position: 'relative' }}>
+                    Тип
+                    <div className="column-resizer" onMouseDown={(e) => handleMouseDown('type', e)} />
+                  </th>
+                  <th style={{ width: columnWidths['datetime'] || 'auto', position: 'relative' }}>
+                    Время звонка ↓
+                    <div className="column-resizer" onMouseDown={(e) => handleMouseDown('datetime', e)} />
+                  </th>
+                  <th style={{ width: columnWidths['not_redialed'] || 'auto', position: 'relative' }}>
+                    Не перезвонили
+                    <div className="column-resizer" onMouseDown={(e) => handleMouseDown('not_redialed', e)} />
+                  </th>
                 </>
               )}
             </tr>
@@ -413,6 +554,11 @@ const CallsTable = ({ calls, type, orgId, onCallUpdated, user }) => {
                     <td
                       key={column.key}
                       className={column.type === 'audio' ? 'audio-cell' : ''}
+                      onMouseDown={(e) => {
+                        if (column.type === 'audio') {
+                          e.stopPropagation();
+                        }
+                      }}
                     >
                       {renderCellContent(column, call)}
                     </td>
@@ -420,24 +566,18 @@ const CallsTable = ({ calls, type, orgId, onCallUpdated, user }) => {
                 ) : (
                   // Fallback to hardcoded columns
                   <>
-                    <td className="audio-cell">
+                    <td
+                      className="audio-cell"
+                      onMouseDown={(e) => e.stopPropagation()}
+                    >
                       {call.recording ? (
-                        <div className="audio-player-wrapper">
-                          <audio controls preload="none" className="mini-player">
-                            <source
-                              src={`https://itatc.ru/app/download-url/${call.recording}`}
-                              type="audio/wav"
-                            />
-                            Ваш браузер не поддерживает аудио
-                          </audio>
-                          <button
-                            className="download-audio-btn"
-                            title="Скачать запись"
-                            onClick={() => handleDownload(call.recording)}
-                          >
-                            ⬇
-                          </button>
-                        </div>
+                        <AudioPlayer
+                          src={`https://itatc.ru/app/download-url/${call.recording}`}
+                          onDownload={() => handleDownload(call.recording)}
+                          phoneNumber={call.number}
+                          callDateTime={call.datetime}
+                          callType={call.type}
+                        />
                       ) : (
                         <span className="no-recording">Нет записи</span>
                       )}
@@ -447,7 +587,22 @@ const CallsTable = ({ calls, type, orgId, onCallUpdated, user }) => {
                         {getStatusLabel(call.status)}
                       </span>
                     </td>
-                    <td className="number-cell">{formatPhoneNumber(call.number)}</td>
+                    <td className="number-cell">
+                      {formatPhoneNumber(call.number)}
+                      {getPhoneMappingName(call.number) && (
+                        <span className="mapping-name"> ({getPhoneMappingName(call.number)})</span>
+                      )}
+                    </td>
+                    {hasCallto1Mapping && (
+                      <td>
+                        {getPhoneMappingName(call.callto1) || '-'}
+                      </td>
+                    )}
+                    {hasCallto2Mapping && (
+                      <td>
+                        {getPhoneMappingName(call.callto2) || '-'}
+                      </td>
+                    )}
                     <td>
                       <span className={`type-badge ${getTypeClass(call.type)}`}>
                         {getTypeLabel(call.type)}

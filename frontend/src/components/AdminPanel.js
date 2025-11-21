@@ -188,8 +188,10 @@ const AdminPanel = ({ user, onLogout, onBack }) => {
         description: editingOrg.description
       };
 
-      // Добавляем credentials если указаны
-      if (editingOrg.username) {
+      // Добавляем credentials ТОЛЬКО если они были изменены
+      // Если username не был изменен (равен текущему credential_username), не отправляем его
+      const currentUsername = organizations.find(o => o.id === editingOrg.id)?.credential_username;
+      if (editingOrg.username && editingOrg.username !== currentUsername) {
         payload.username = editingOrg.username;
       }
       if (editingOrg.password) {
@@ -500,7 +502,7 @@ const AdminPanel = ({ user, onLogout, onBack }) => {
                           {editingOrg.logo_url && (
                             <div style={{ marginTop: '10px' }}>
                               <img
-                                src={`${API_URL}${editingOrg.logo_url}`}
+                                src={`${API_URL}/api${editingOrg.logo_url}`}
                                 alt="Logo preview"
                                 style={{ maxWidth: '100px', maxHeight: '100px', objectFit: 'contain' }}
                               />
@@ -596,7 +598,7 @@ const AdminPanel = ({ user, onLogout, onBack }) => {
                           <small>Замените внутренние номера на понятные названия</small>
 
                           {/* Форма добавления нового маппинга */}
-                          <form onSubmit={(e) => handleCreateMapping(e, editingOrg.id)} style={{ marginTop: '15px', marginBottom: '15px' }}>
+                          <div style={{ marginTop: '15px', marginBottom: '15px' }}>
                             <div style={{ display: 'flex', gap: '10px', alignItems: 'flex-end' }}>
                               <div className="form-group" style={{ flex: 1, margin: 0 }}>
                                 <label style={{ fontSize: '12px' }}>Номер телефона</label>
@@ -627,11 +629,11 @@ const AdminPanel = ({ user, onLogout, onBack }) => {
                                   style={{ width: '100%', height: '38px' }}
                                 />
                               </div>
-                              <button type="submit" className="btn btn-primary btn-sm" style={{ marginBottom: 0 }}>
+                              <button type="button" onClick={(e) => handleCreateMapping(e, editingOrg.id)} className="btn btn-primary btn-sm" style={{ marginBottom: 0 }}>
                                 Добавить
                               </button>
                             </div>
-                          </form>
+                          </div>
 
                           {/* Список существующих маппингов */}
                           {phoneMappings.length > 0 ? (
@@ -647,7 +649,7 @@ const AdminPanel = ({ user, onLogout, onBack }) => {
                                   borderRadius: '4px'
                                 }}>
                                   {editingMapping?.id === mapping.id ? (
-                                    <form onSubmit={handleUpdateMapping} style={{ display: 'flex', gap: '10px', flex: 1, alignItems: 'center' }}>
+                                    <div style={{ display: 'flex', gap: '10px', flex: 1, alignItems: 'center' }}>
                                       <input
                                         type="text"
                                         value={editingMapping.phone_number}
@@ -666,7 +668,7 @@ const AdminPanel = ({ user, onLogout, onBack }) => {
                                         onChange={(e) => setEditingMapping({ ...editingMapping, color: e.target.value })}
                                         style={{ width: '50px', height: '30px' }}
                                       />
-                                      <button type="submit" className="btn btn-primary btn-sm">Сохранить</button>
+                                      <button type="button" className="btn btn-primary btn-sm" onClick={handleUpdateMapping}>Сохранить</button>
                                       <button
                                         type="button"
                                         className="btn btn-secondary btn-sm"
@@ -674,7 +676,7 @@ const AdminPanel = ({ user, onLogout, onBack }) => {
                                       >
                                         Отмена
                                       </button>
-                                    </form>
+                                    </div>
                                   ) : (
                                     <>
                                       <div style={{
@@ -736,7 +738,8 @@ const AdminPanel = ({ user, onLogout, onBack }) => {
                           <button
                             className="btn btn-secondary btn-sm"
                             onClick={() => {
-                              setEditingOrg(org);
+                              // Очищаем username и password при открытии формы редактирования
+                              setEditingOrg({ ...org, username: '', password: '' });
                               loadPhoneMappings(org.id);
                             }}
                           >

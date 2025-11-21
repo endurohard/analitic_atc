@@ -27,6 +27,8 @@ const Dashboard = ({ user, organization, onLogout, onChangeOrganization }) => {
   const [endDate, setEndDate] = useState('');
   const [useCustomDates, setUseCustomDates] = useState(false);
   const [containerWidth, setContainerWidth] = useState(window.innerWidth - 32);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
 
   // Layout state для react-grid-layout
   const defaultLayout = [
@@ -38,6 +40,7 @@ const Dashboard = ({ user, organization, onLogout, onChangeOrganization }) => {
 
   const [layout, setLayout] = useState(defaultLayout);
   const [layoutLoaded, setLayoutLoaded] = useState(false);
+  const [columnWidths, setColumnWidths] = useState({});
 
   const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
 
@@ -63,6 +66,10 @@ const Dashboard = ({ user, organization, onLogout, onChangeOrganization }) => {
   useEffect(() => {
     const handleResize = () => {
       setContainerWidth(window.innerWidth - 32);
+      setIsMobile(window.innerWidth <= 768);
+      if (window.innerWidth > 768) {
+        setMobileMenuOpen(false);
+      }
     };
 
     window.addEventListener('resize', handleResize);
@@ -86,15 +93,26 @@ const Dashboard = ({ user, organization, onLogout, onChangeOrganization }) => {
           console.log('Layout items not array, using default');
           setLayout(defaultLayout);
         }
+
+        // Загружаем ширину колонок если она есть
+        if (response.data.layout_data.columnWidths) {
+          console.log('Setting column widths from API:', response.data.layout_data.columnWidths);
+          setColumnWidths(response.data.layout_data.columnWidths);
+        } else {
+          console.log('No column widths in layout, using empty');
+          setColumnWidths({});
+        }
       } else {
         // Если layout не найден, используем дефолтный
         console.log('No layout_data, using default');
         setLayout(defaultLayout);
+        setColumnWidths({});
       }
     } catch (error) {
       console.error('Ошибка загрузки layout:', error);
       console.log('Error loading layout, using default');
       setLayout(defaultLayout);
+      setColumnWidths({});
     } finally {
       // Устанавливаем флаг после загрузки (независимо от успеха/ошибки)
       setLayoutLoaded(true);
@@ -114,7 +132,10 @@ const Dashboard = ({ user, organization, onLogout, onChangeOrganization }) => {
       console.log('Saving layout to API:', newLayout);
       await axios.post(`${API_URL}/api/dashboard-layout`, {
         org_id: parseInt(organization.orgId),
-        layout_data: { items: newLayout }
+        layout_data: {
+          items: newLayout,
+          columnWidths: columnWidths
+        }
       });
       console.log('Layout saved successfully');
     } catch (error) {
@@ -122,9 +143,39 @@ const Dashboard = ({ user, organization, onLogout, onChangeOrganization }) => {
     }
   };
 
+  // Обработчик изменения ширины колонок - сохранение в API (с debounce)
+  const saveLayoutWithColumnWidthsRef = React.useRef(null);
+
+  const saveLayoutWithColumnWidths = React.useCallback((newColumnWidths) => {
+    // Только для админов сохраняем column widths
+    // И только после того, как layout был загружен
+    if (!isAdmin || !layoutLoaded) return;
+
+    // Очищаем предыдущий таймер
+    if (saveLayoutWithColumnWidthsRef.current) {
+      clearTimeout(saveLayoutWithColumnWidthsRef.current);
+    }
+
+    // Устанавливаем новый таймер (debounce 500ms)
+    saveLayoutWithColumnWidthsRef.current = setTimeout(async () => {
+      try {
+        await axios.post(`${API_URL}/api/dashboard-layout`, {
+          org_id: parseInt(organization.orgId),
+          layout_data: {
+            items: layout,
+            columnWidths: newColumnWidths
+          }
+        });
+      } catch (error) {
+        console.error('Ошибка сохранения column widths:', error);
+      }
+    }, 500);
+  }, [isAdmin, layoutLoaded, layout, organization.orgId, API_URL]);
+
   // Сброс layout к значениям по умолчанию
   const resetLayout = async () => {
     setLayout(defaultLayout);
+    setColumnWidths({});
 
     // Удаляем layout из базы данных
     try {
@@ -136,7 +187,7 @@ const Dashboard = ({ user, organization, onLogout, onChangeOrganization }) => {
 
   // Применить текущий layout ко всем организациям пользователя
   const applyLayoutToAll = async () => {
-    if (!window.confirm('Применить текущее расположение панелей ко всем вашим организациям?')) {
+    if (!window.confirm('Применить текущее расположение панелей и размеры колонок ко всем вашим организациям?')) {
       return;
     }
 
@@ -145,15 +196,19 @@ const Dashboard = ({ user, organization, onLogout, onChangeOrganization }) => {
       const userOrgs = user?.organizations || [];
       console.log('Applying layout to organizations:', userOrgs);
       console.log('Current layout:', layout);
+      console.log('Current column widths:', columnWidths);
 
-      // Сохраняем текущий layout для каждой организации
+      // Сохраняем текущий layout и columnWidths для каждой организации
       let successCount = 0;
       for (const org of userOrgs) {
         console.log(`Saving layout for org ${org.orgId}...`);
         try {
           const response = await axios.post(`${API_URL}/api/dashboard-layout`, {
             org_id: parseInt(org.orgId),
-            layout_data: { items: layout }
+            layout_data: {
+              items: layout,
+              columnWidths: columnWidths
+            }
           });
           console.log(`✓ Saved for org ${org.orgId}:`, response.data);
           successCount++;
@@ -162,7 +217,7 @@ const Dashboard = ({ user, organization, onLogout, onChangeOrganization }) => {
         }
       }
 
-      alert(`Layout применен к ${successCount} из ${userOrgs.length} организаций`);
+      alert(`Layout и размеры колонок применены к ${successCount} из ${userOrgs.length} организаций`);
     } catch (error) {
       console.error('Ошибка применения layout ко всем организациям:', error);
       alert('Ошибка при применении layout');
@@ -230,9 +285,32 @@ const Dashboard = ({ user, organization, onLogout, onChangeOrganization }) => {
 
   return (
     <div className="dashboard">
+      {/* Mobile menu overlay */}
+      {isMobile && mobileMenuOpen && (
+        <div
+          className="mobile-menu-overlay"
+          onClick={() => setMobileMenuOpen(false)}
+        />
+      )}
+
       {/* Header */}
       <div className="dashboard-header">
         <div className="header-left">
+          {isMobile && (
+            <button
+              className="hamburger-btn"
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              aria-label="Меню"
+            >
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                {mobileMenuOpen ? (
+                  <path d="M18 6L6 18M6 6L18 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+                ) : (
+                  <path d="M3 12H21M3 6H21M3 18H21" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+                )}
+              </svg>
+            </button>
+          )}
           <div className="org-badge">
             {organization.logo_url ? (
               <>
@@ -267,11 +345,14 @@ const Dashboard = ({ user, organization, onLogout, onChangeOrganization }) => {
             )}
           </div>
         </div>
-        <div className="header-right">
+        <div className={`header-right ${isMobile && mobileMenuOpen ? 'mobile-menu-open' : ''}`}>
           <select
             className="time-selector"
             value={callType}
-            onChange={(e) => setCallType(e.target.value)}
+            onChange={(e) => {
+              setCallType(e.target.value);
+              if (isMobile) setMobileMenuOpen(false);
+            }}
             title="Тип звонка"
           >
             <option value="all">Все звонки</option>
@@ -281,7 +362,10 @@ const Dashboard = ({ user, organization, onLogout, onChangeOrganization }) => {
           <select
             className="time-selector"
             value={refreshInterval}
-            onChange={(e) => setRefreshInterval(Number(e.target.value))}
+            onChange={(e) => {
+              setRefreshInterval(Number(e.target.value));
+              if (isMobile) setMobileMenuOpen(false);
+            }}
             title="Интервал автообновления"
           >
             <option value="1">Обновление: 1 сек</option>
@@ -293,7 +377,10 @@ const Dashboard = ({ user, organization, onLogout, onChangeOrganization }) => {
           <select
             className="time-selector"
             value={timeRange}
-            onChange={(e) => setTimeRange(e.target.value)}
+            onChange={(e) => {
+              setTimeRange(e.target.value);
+              if (isMobile) setMobileMenuOpen(false);
+            }}
           >
             <option value="1h">Последний 1 час</option>
             <option value="24h">Последние 24 часа</option>
@@ -302,21 +389,36 @@ const Dashboard = ({ user, organization, onLogout, onChangeOrganization }) => {
           </select>
           {isAdmin && (
             <>
-              <button className="btn btn-primary" onClick={() => navigate('/admin')}>
+              <button className="btn btn-primary" onClick={() => {
+                navigate('/admin');
+                if (isMobile) setMobileMenuOpen(false);
+              }}>
                 Админ панель
               </button>
-              <button className="btn btn-secondary" onClick={applyLayoutToAll} title="Применить текущее расположение ко всем организациям">
+              <button className="btn btn-secondary" onClick={() => {
+                applyLayoutToAll();
+                if (isMobile) setMobileMenuOpen(false);
+              }} title="Применить текущее расположение ко всем организациям">
                 Применить ко всем
               </button>
-              <button className="btn btn-secondary" onClick={resetLayout} title="Сбросить расположение панелей">
+              <button className="btn btn-secondary" onClick={() => {
+                resetLayout();
+                if (isMobile) setMobileMenuOpen(false);
+              }} title="Сбросить расположение панелей">
                 Сбросить layout
               </button>
-              <button className="btn btn-secondary" onClick={onChangeOrganization}>
+              <button className="btn btn-secondary" onClick={() => {
+                onChangeOrganization();
+                if (isMobile) setMobileMenuOpen(false);
+              }}>
                 Сменить организацию
               </button>
             </>
           )}
-          <button className="btn btn-secondary" onClick={onLogout}>
+          <button className="btn btn-secondary" onClick={() => {
+            onLogout();
+            if (isMobile) setMobileMenuOpen(false);
+          }}>
             Выйти
           </button>
         </div>
@@ -358,7 +460,15 @@ const Dashboard = ({ user, organization, onLogout, onChangeOrganization }) => {
             {activeCalls.length === 0 ? (
               <div className="no-data">No data</div>
             ) : (
-              <CallsTable calls={activeCalls} type="active" />
+              <CallsTable
+                calls={activeCalls}
+                type="active"
+                organization={organization}
+                user={user}
+                columnWidths={columnWidths}
+                setColumnWidths={setColumnWidths}
+                onColumnWidthsChange={saveLayoutWithColumnWidths}
+              />
             )}
           </div>
         </div>
@@ -369,7 +479,15 @@ const Dashboard = ({ user, organization, onLogout, onChangeOrganization }) => {
             <h3>Не обработанные</h3>
           </div>
           <div className="section-content">
-            <CallsTable calls={unprocessedCalls} type="unprocessed" />
+            <CallsTable
+              calls={unprocessedCalls}
+              type="unprocessed"
+              organization={organization}
+              user={user}
+              columnWidths={columnWidths}
+              setColumnWidths={setColumnWidths}
+              onColumnWidthsChange={saveLayoutWithColumnWidths}
+            />
           </div>
         </div>
 
@@ -383,8 +501,12 @@ const Dashboard = ({ user, organization, onLogout, onChangeOrganization }) => {
               calls={calls}
               type="all"
               orgId={organization?.orgId}
+              organization={organization}
               onCallUpdated={fetchData}
               user={user}
+              columnWidths={columnWidths}
+              setColumnWidths={setColumnWidths}
+              onColumnWidthsChange={saveLayoutWithColumnWidths}
             />
           </div>
         </div>

@@ -48,3 +48,6 @@ shell-frontend: ## Открыть shell в frontend контейнере
 
 ps: ## Показать запущенные контейнеры
 	docker-compose ps
+
+change-password: ## Изменить пароль пользователя (использование: make change-password USER=admin PASS=newpass)
+	@docker exec atc_analytics_backend python3 change_password.py $(USER) $(PASS)

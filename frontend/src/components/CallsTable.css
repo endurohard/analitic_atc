@@ -133,9 +133,10 @@
   cursor: context-menu;
 }
 
-.calls-table tbody tr.table-row:active {
+/* Убираем подсветку строки при нажатии, чтобы не мешала работе с плеером */
+/* .calls-table tbody tr.table-row:active {
   background-color: #e6f7ff;
-}
+} */
 
 .number-cell {
   color: #1890ff;
@@ -225,8 +226,8 @@
 
 /* Стили для аудио плеера */
 .audio-cell {
-  width: 230px;
-  max-width: 230px;
+  min-width: 300px;
+  padding: 4px !important;
 }
 
 .audio-player-wrapper {
@@ -306,7 +307,7 @@
   }
 
   .audio-cell {
-    min-width: 200px;
+    min-width: 400px;
   }
 
   .mini-player {
@@ -315,48 +316,149 @@
   }
 }
 
-/* Mobile */
+/* Mobile Card View */
 @media (max-width: 768px) {
+  .calls-table {
+    overflow-x: visible;
+  }
+
   .calls-table table {
-    min-width: 700px;
+    display: none;
   }
 
-  .calls-table th {
-    padding: 6px 8px;
-    font-size: 10px;
+  .calls-cards {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 8px;
   }
 
-  .calls-table td {
-    padding: 6px 8px;
-    font-size: 11px;
+  .call-card {
+    background: white;
+    border-radius: 8px;
+    padding: 12px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    border: 1px solid #f0f0f0;
+    transition: all 0.2s;
+  }
+
+  .call-card:active {
+    transform: scale(0.98);
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
+  }
+
+  .call-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid #f0f0f0;
+  }
+
+  .call-card-number {
+    font-size: 15px;
+    font-weight: 600;
+    color: #1890ff;
+    flex: 1;
+    min-width: 0;
+  }
+
+  .call-card-badges {
+    display: flex;
+    gap: 6px;
+    flex-shrink: 0;
+  }
+
+  .call-card-body {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 8px;
+    font-size: 13px;
+  }
+
+  .call-card-label {
+    color: #999;
+    font-size: 12px;
+    white-space: nowrap;
+  }
+
+  .call-card-value {
+    color: #333;
+    font-weight: 500;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .call-card-audio {
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px solid #f0f0f0;
+  }
+
+  .call-card-actions {
+    margin-top: 8px;
+    display: flex;
+    gap: 8px;
+    justify-content: flex-end;
   }
 
   .status-badge,
   .type-badge {
-    font-size: 9px;
-    padding: 2px 6px;
+    font-size: 10px;
+    padding: 3px 8px;
   }
 
   .icon-btn {
-    font-size: 14px;
-    padding: 2px 4px;
+    font-size: 18px;
+    padding: 6px;
+    min-width: 36px;
+    min-height: 36px;
+    border-radius: 4px;
   }
 
-  .audio-cell {
-    min-width: 180px;
+  .icon-btn:active {
+    background: #f0f0f0;
   }
 
   .mini-player {
-    max-width: 180px;
-    height: 26px;
+    width: 100%;
+    max-width: 100%;
+    height: 32px;
   }
 
-  .number-cell {
-    font-size: 12px;
+  .audio-player-wrapper {
+    flex-direction: column;
+    gap: 8px;
   }
 
-  .no-recording {
-    font-size: 10px;
+  .download-audio-btn {
+    width: 100%;
+    height: 36px;
+    font-size: 16px;
+  }
+
+  /* Скрываем поиск на мобильных для экономии места */
+  .search-container {
+    padding: 8px;
+    gap: 8px;
+    margin-bottom: 8px;
+    flex-wrap: wrap;
+  }
+
+  .search-input {
+    font-size: 13px;
+    padding: 8px 10px;
+  }
+
+  .search-results-count {
+    font-size: 11px;
+    padding: 4px 8px;
+  }
+
+  .clear-search-btn {
+    font-size: 14px;
+    padding: 6px 10px;
   }
 }
 
@@ -379,7 +481,7 @@
   }
 
   .audio-cell {
-    min-width: 160px;
+    min-width: 280px;
   }
 
   .mini-player {
@@ -449,4 +551,49 @@
     font-size: 10px;
     min-width: 24px;
   }
+}
+
+/* Стили для отображения названий из маппинга */
+.mapping-name {
+  color: #1890ff;
+  font-weight: 500;
+  font-size: 0.9em;
+}
+
+/* Стили для изменения размера колонок */
+.column-resizer {
+  position: absolute;
+  top: 0;
+  right: -3px;
+  width: 10px;
+  height: 100%;
+  cursor: col-resize;
+  user-select: none;
+  z-index: 10;
+  background: transparent;
+}
+
+.column-resizer:hover {
+  background-color: #1890ff;
+  opacity: 0.6;
+  width: 6px;
+  right: -3px;
+}
+
+.column-resizer:active {
+  background-color: #1890ff;
+  opacity: 0.9;
+  width: 6px;
+  right: -3px;
+}
+
+/* Предотвращаем выделение текста при изменении размера */
+.calls-table.resizing {
+  user-select: none;
+}
+
+.calls-table th {
+  position: relative;
+  min-width: 50px;
+  user-select: none;
 }

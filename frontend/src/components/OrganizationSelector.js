@@ -2,6 +2,7 @@ import React from 'react';
 import './OrganizationSelector.css';
 
 const OrganizationSelector = ({ user, onSelectOrganization, onLogout }) => {
+  const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
   const getRoleBadgeClass = (role) => {
     switch (role) {
       case 'admin':
@@ -47,12 +48,23 @@ const OrganizationSelector = ({ user, onSelectOrganization, onLogout }) => {
           >
             <div className="org-card-content">
               <div className="org-icon">
+                {org.logo_url ? (
+                  <img
+                    src={`${API_URL}${org.logo_url}`}
+                    alt={`${org.name} logo`}
+                    onError={(e) => {
+                      e.target.style.display = 'none';
+                      e.target.nextSibling.style.display = 'block';
+                    }}
+                  />
+                ) : null}
                 <svg
                   width="40"
                   height="40"
                   viewBox="0 0 40 40"
                   fill="none"
                   xmlns="http://www.w3.org/2000/svg"
+                  style={{ display: org.logo_url ? 'none' : 'block' }}
                 >
                   <rect width="40" height="40" rx="8" fill="#1890ff" opacity="0.1" />
                   <path

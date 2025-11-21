@@ -39,6 +39,7 @@ os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 # Монтируем статические файлы
 app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
+app.mount("/api/uploads", StaticFiles(directory="uploads"), name="api-uploads")
 
 @app.get("/")
 def read_root():
