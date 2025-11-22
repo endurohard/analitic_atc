@@ -264,6 +264,10 @@ const Dashboard = ({ user, organization, onLogout, onChangeOrganization }) => {
       const statsResponse = await axios.get(`${API_URL}/api/statistics/summary`, {
         params: statsParams
       });
+
+      console.log('Desktop Dashboard Statistics Response:', statsResponse.data);
+      console.log('Desktop Dashboard - StatsParams:', statsParams);
+
       setStatistics({
         accepted: statsResponse.data.answered_calls,
         missed: statsResponse.data.missed_calls,

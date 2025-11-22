@@ -41,12 +41,22 @@
   text-align: center;
   font-weight: 600;
   color: #333;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
 }
 
 .mobile-org-logo img {
   max-height: 40px;
   max-width: 150px;
   object-fit: contain;
+}
+
+.mobile-last-update {
+  font-size: 10px;
+  color: #999;
+  font-weight: 400;
 }
 
 .mobile-refresh {

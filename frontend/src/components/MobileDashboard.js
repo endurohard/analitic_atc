@@ -145,6 +145,7 @@ const MobileDashboard = ({ user, organization, onLogout, onChangeOrganization })
   const [activeTab, setActiveTab] = useState('stats'); // stats, active, unprocessed, all
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [lastUpdateTime, setLastUpdateTime] = useState(null);
 
   // Пагинация
   const [currentPage, setCurrentPage] = useState(1);
@@ -176,12 +177,19 @@ const MobileDashboard = ({ user, organization, onLogout, onChangeOrganization })
       setCalls(callsRes.data);
       setUnprocessedCalls(unprocessedRes.data);
       setActiveCalls(activeRes.data);
+
+      const updateTime = new Date().toLocaleTimeString('ru-RU');
+      console.log(`[${updateTime}] Mobile Dashboard Statistics Response:`, statsRes.data);
+      console.log(`[${updateTime}] Mobile Dashboard - TimeRange:`, timeRange);
+      console.log(`[${updateTime}] Mobile Dashboard - OrgId:`, organization.orgId);
+
       setStatistics({
         accepted: statsRes.data.answered_calls,
         missed: statsRes.data.missed_calls,
         total: statsRes.data.total_calls,
         notRedialed: statsRes.data.not_redialed
       });
+      setLastUpdateTime(updateTime);
     } catch (error) {
       console.error('Error fetching data:', error);
     } finally {
@@ -671,6 +679,7 @@ const MobileDashboard = ({ user, organization, onLogout, onChangeOrganization })
           ) : (
             <span>{organization.name}</span>
           )}
+          {lastUpdateTime && <div className="mobile-last-update">Обновлено: {lastUpdateTime}</div>}
         </div>
 
         <button className="mobile-refresh" onClick={fetchData} disabled={loading}>
