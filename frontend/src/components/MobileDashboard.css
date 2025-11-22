@@ -530,3 +530,84 @@
     font-size: 13px;
   }
 }
+
+/* Статистика по маппингам (точкам) */
+.mobile-mapping-stats {
+  padding: 16px;
+  background: white;
+  margin: 16px;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.mobile-mapping-stats-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: #333;
+  margin: 0 0 16px 0;
+  padding-bottom: 12px;
+  border-bottom: 2px solid #f0f0f0;
+}
+
+.mobile-mapping-stat-card {
+  background: #fafafa;
+  border-radius: 8px;
+  padding: 12px;
+  margin-bottom: 12px;
+  border-left: 4px solid #1890ff;
+}
+
+.mobile-mapping-stat-card:last-child {
+  margin-bottom: 0;
+}
+
+.mobile-mapping-stat-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.mobile-mapping-stat-name {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.mobile-mapping-stat-total {
+  font-size: 13px;
+  color: #666;
+  background: white;
+  padding: 4px 8px;
+  border-radius: 4px;
+}
+
+.mobile-mapping-stat-body {
+  display: flex;
+  gap: 12px;
+}
+
+.mobile-mapping-stat-item {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.mobile-mapping-stat-label {
+  font-size: 11px;
+  color: #888;
+}
+
+.mobile-mapping-stat-value {
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.mobile-mapping-stat-value.success {
+  color: #52c41a;
+}
+
+.mobile-mapping-stat-value.danger {
+  color: #ff4d4f;
+}

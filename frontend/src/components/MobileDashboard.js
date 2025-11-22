@@ -137,6 +137,7 @@ const MobileDashboard = ({ user, organization, onLogout, onChangeOrganization })
     total: 0,
     notRedialed: 0
   });
+  const [mappingStatistics, setMappingStatistics] = useState([]);
   const [loading, setLoading] = useState(false);
   const [timeRange, setTimeRange] = useState('24h');
   const [refreshInterval, setRefreshInterval] = useState(5);
@@ -166,12 +167,20 @@ const MobileDashboard = ({ user, organization, onLogout, onChangeOrganization })
       const callsParams = { orgId: organization.orgId, limit: 100, timeRange };
       if (callType !== 'all') callsParams.direction = callType;
 
-      const [callsRes, unprocessedRes, statsRes, activeRes] = await Promise.all([
+      const requests = [
         axios.get(`${API_URL}/api/calls`, { params: callsParams }),
         axios.get(`${API_URL}/api/calls-unprocessed`, { params: { orgId: organization.orgId, limit: 100, timeRange } }),
         axios.get(`${API_URL}/api/statistics/summary`, { params: { orgId: organization.orgId, timeRange } }),
         axios.get(`${API_URL}/api/calls-active`, { params: { orgId: organization.orgId } })
-      ]);
+      ];
+
+      // Добавляем запрос статистики по маппингам если они есть
+      if (phoneMappings.length > 0) {
+        requests.push(axios.get(`${API_URL}/api/statistics/by-mapping`, { params: { orgId: organization.orgId, timeRange } }));
+      }
+
+      const responses = await Promise.all(requests);
+      const [callsRes, unprocessedRes, statsRes, activeRes, mappingStatsRes] = responses;
 
       setCalls(callsRes.data);
       setUnprocessedCalls(unprocessedRes.data);
@@ -188,6 +197,13 @@ const MobileDashboard = ({ user, organization, onLogout, onChangeOrganization })
         total: statsRes.data.total_calls,
         notRedialed: statsRes.data.not_redialed
       });
+
+      // Устанавливаем статистику по маппингам если она есть
+      if (mappingStatsRes) {
+        setMappingStatistics(mappingStatsRes.data);
+        console.log(`[${updateTime}] Mapping Statistics:`, mappingStatsRes.data);
+      }
+
       setLastUpdateTime(updateTime);
     } catch (error) {
       console.error('Error fetching data:', error);
@@ -607,6 +623,35 @@ const MobileDashboard = ({ user, organization, onLogout, onChangeOrganization })
                 height="100%"
               />
             </div>
+
+            {/* Статистика по маппингам (точкам) */}
+            {mappingStatistics.length > 0 && (
+              <div className="mobile-mapping-stats">
+                <h3 className="mobile-mapping-stats-title">Статистика по точкам</h3>
+                {mappingStatistics.map(mapping => (
+                  <div key={mapping.id} className="mobile-mapping-stat-card">
+                    <div className="mobile-mapping-stat-header">
+                      <div className="mobile-mapping-stat-name" style={{ color: mapping.color || '#1890ff' }}>
+                        {mapping.display_name}
+                      </div>
+                      <div className="mobile-mapping-stat-total">
+                        {mapping.total_calls} звонков
+                      </div>
+                    </div>
+                    <div className="mobile-mapping-stat-body">
+                      <div className="mobile-mapping-stat-item">
+                        <span className="mobile-mapping-stat-label">Принято:</span>
+                        <span className="mobile-mapping-stat-value success">{mapping.answered_calls}</span>
+                      </div>
+                      <div className="mobile-mapping-stat-item">
+                        <span className="mobile-mapping-stat-label">Пропущено:</span>
+                        <span className="mobile-mapping-stat-value danger">{mapping.missed_calls}</span>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         );
 

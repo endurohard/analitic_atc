@@ -123,3 +123,110 @@
     min-height: 50px;
   }
 }
+
+/* Статистика по маппингам */
+.mapping-stats-section {
+  margin-top: 24px;
+  padding: 20px;
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.mapping-stats-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: #333;
+  margin: 0 0 20px 0;
+  padding-bottom: 12px;
+  border-bottom: 2px solid #f0f0f0;
+}
+
+.mapping-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 16px;
+}
+
+.mapping-stat-card {
+  background: #fafafa;
+  border-radius: 8px;
+  padding: 16px;
+  border-left: 4px solid #1890ff;
+  transition: all 0.3s;
+}
+
+.mapping-stat-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.mapping-stat-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.mapping-stat-name {
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.mapping-stat-total {
+  font-size: 14px;
+  color: #666;
+  background: white;
+  padding: 4px 12px;
+  border-radius: 4px;
+}
+
+.mapping-stat-body {
+  display: flex;
+  gap: 16px;
+}
+
+.mapping-stat-item {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 12px;
+  background: white;
+  border-radius: 6px;
+}
+
+.mapping-stat-label {
+  font-size: 12px;
+  color: #888;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.mapping-stat-value {
+  font-size: 24px;
+  font-weight: 700;
+}
+
+.mapping-stat-value.success {
+  color: #52c41a;
+}
+
+.mapping-stat-value.danger {
+  color: #ff4d4f;
+}
+
+@media (max-width: 768px) {
+  .mapping-stats-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .mapping-stat-card {
+    padding: 12px;
+  }
+
+  .mapping-stat-value {
+    font-size: 20px;
+  }
+}

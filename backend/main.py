@@ -543,6 +543,121 @@ def get_unprocessed_calls(
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+@app.get("/api/statistics/by-mapping")
+def get_statistics_by_mapping(
+    orgId: int,
+    timeRange: str = None,
+    startDate: str = None,
+    endDate: str = None,
+    db: Session = Depends(get_db)
+):
+    """
+    Получение статистики по маппингам телефонов (точкам)
+    Возвращает общее количество звонков и пропущенные для каждого маппинга
+    """
+    try:
+        from datetime import datetime, timedelta
+
+        # Получаем маппинги для организации
+        phone_mappings = db.query(models.PhoneMapping).filter(
+            models.PhoneMapping.org_id == orgId
+        ).all()
+
+        if not phone_mappings:
+            return []
+
+        # Определяем временной фильтр
+        time_filter = ""
+        params = {"org_id": orgId}
+
+        if startDate or endDate:
+            if startDate:
+                try:
+                    if len(startDate) == 10:
+                        start_time = datetime.strptime(startDate, "%Y-%m-%d")
+                    else:
+                        start_time = datetime.strptime(startDate, "%Y-%m-%d %H:%M:%S")
+                    time_filter = 'AND "createdAt" >= :start_time'
+                    params["start_time"] = start_time
+                except ValueError:
+                    pass
+
+            if endDate:
+                try:
+                    if len(endDate) == 10:
+                        end_time = datetime.strptime(endDate, "%Y-%m-%d")
+                        end_time = end_time + timedelta(days=1) - timedelta(seconds=1)
+                    else:
+                        end_time = datetime.strptime(endDate, "%Y-%m-%d %H:%M:%S")
+
+                    if time_filter:
+                        time_filter += ' AND "createdAt" <= :end_time'
+                    else:
+                        time_filter = 'AND "createdAt" <= :end_time'
+                    params["end_time"] = end_time
+                except ValueError:
+                    pass
+
+        elif timeRange:
+            now = datetime.now()
+            if timeRange == "1h":
+                start_time = now - timedelta(hours=1)
+            elif timeRange == "24h":
+                start_time = now - timedelta(hours=24)
+            elif timeRange == "7d":
+                start_time = now - timedelta(days=7)
+            elif timeRange == "30d":
+                start_time = now - timedelta(days=30)
+            else:
+                start_time = None
+
+            if start_time:
+                time_filter = 'AND "createdAt" >= :start_time'
+                params["start_time"] = start_time
+
+        # Собираем статистику для каждого маппинга
+        results = []
+        for mapping in phone_mappings:
+            # Нормализуем номер из маппинга
+            mapping_phone = str(mapping.phone_number).replace('+', '').replace('-', '').replace(' ', '')
+
+            # SQL запрос для подсчета звонков на этот номер
+            query = text(f"""
+                SELECT
+                    COUNT(*) as total_calls,
+                    SUM(CASE WHEN status IN ('NO ANSWER', 'NOANSWER') THEN 1 ELSE 0 END) as missed_calls
+                FROM cdrs
+                WHERE "orgId" = :org_id
+                    AND (
+                        callto1 LIKE '%' || :phone || '%'
+                        OR callto2 LIKE '%' || :phone || '%'
+                    )
+                    {time_filter}
+            """)
+
+            params_with_phone = params.copy()
+            params_with_phone["phone"] = mapping_phone
+
+            result = db.execute(query, params_with_phone).first()
+
+            if result and result[0] > 0:  # Только если есть звонки
+                results.append({
+                    "id": mapping.id,
+                    "phone_number": mapping.phone_number,
+                    "display_name": mapping.display_name,
+                    "color": mapping.color,
+                    "total_calls": result[0] or 0,
+                    "missed_calls": result[1] or 0,
+                    "answered_calls": (result[0] or 0) - (result[1] or 0)
+                })
+
+        # Сортируем по количеству звонков (от большего к меньшему)
+        results.sort(key=lambda x: x['total_calls'], reverse=True)
+
+        return results
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 @app.get("/api/statistics/summary")
 def get_statistics_summary(
     orgId: int,

@@ -19,6 +19,7 @@ const Dashboard = ({ user, organization, onLogout, onChangeOrganization }) => {
     total: 386,
     notRedialed: 4
   });
+  const [mappingStatistics, setMappingStatistics] = useState([]);
   const [loading, setLoading] = useState(false);
   const [timeRange, setTimeRange] = useState('24h');
   const [refreshInterval, setRefreshInterval] = useState(5); // в секундах
@@ -275,6 +276,22 @@ const Dashboard = ({ user, organization, onLogout, onChangeOrganization }) => {
         notRedialed: statsResponse.data.not_redialed
       });
 
+      // Загружаем статистику по маппингам если они есть
+      if (organization.phone_mappings && organization.phone_mappings.length > 0) {
+        try {
+          const mappingStatsResponse = await axios.get(`${API_URL}/api/statistics/by-mapping`, {
+            params: statsParams
+          });
+          setMappingStatistics(mappingStatsResponse.data);
+          console.log('Desktop Dashboard Mapping Statistics:', mappingStatsResponse.data);
+        } catch (error) {
+          console.error('Error loading mapping statistics:', error);
+          setMappingStatistics([]);
+        }
+      } else {
+        setMappingStatistics([]);
+      }
+
       // Загружаем активные звонки (без временного фильтра - всегда текущие)
       const activeResponse = await axios.get(`${API_URL}/api/calls-active`, {
         params: { orgId: organization.orgId }
@@ -451,6 +468,7 @@ const Dashboard = ({ user, organization, onLogout, onChangeOrganization }) => {
               timeRange={useCustomDates ? undefined : timeRange}
               startDate={useCustomDates ? startDate : undefined}
               endDate={useCustomDates ? endDate : undefined}
+              mappingStatistics={mappingStatistics}
             />
           </div>
         </div>
