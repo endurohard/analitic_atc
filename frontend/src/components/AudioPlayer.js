@@ -126,8 +126,17 @@ const AudioPlayer = ({ src, onDownload, phoneNumber, callDateTime, callType }) =
   }, [src]);
 
   const togglePlay = (e) => {
-    e.stopPropagation(); // Предотвращаем всплытие события
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+
     const audio = audioRef.current;
+    if (!audio) {
+      console.error('Audio ref is null');
+      return;
+    }
+
     console.log('togglePlay called, isPlaying:', isPlaying, 'currentTime:', audio.currentTime);
 
     if (isPlaying) {
@@ -136,7 +145,25 @@ const AudioPlayer = ({ src, onDownload, phoneNumber, callDateTime, callType }) =
       // Регистрируем этот плеер как текущий, что остановит все остальные
       audioManager.setCurrentPlayer(audio);
       console.log('About to play, currentTime before play:', audio.currentTime);
-      audio.play();
+
+      // Обрабатываем Promise от play() для мобильных браузеров
+      const playPromise = audio.play();
+
+      if (playPromise !== undefined) {
+        playPromise
+          .then(() => {
+            console.log('Audio playback started successfully');
+          })
+          .catch(error => {
+            console.error('Failed to play audio:', error);
+            // Сбрасываем состояние воспроизведения при ошибке
+            setIsPlaying(false);
+
+            // Показываем уведомление пользователю
+            alert('Не удалось воспроизвести аудио. Возможно, требуется взаимодействие с пользователем.');
+          });
+      }
+
       console.log('After play() called, currentTime:', audio.currentTime);
     }
   };
@@ -204,7 +231,13 @@ const AudioPlayer = ({ src, onDownload, phoneNumber, callDateTime, callType }) =
 
             if (wasPlaying) {
               console.log('Resuming playback from:', audio.currentTime);
-              audio.play().catch(err => console.error('Play failed:', err));
+              const resumePromise = audio.play();
+              if (resumePromise !== undefined) {
+                resumePromise.catch(err => {
+                  console.error('Play failed:', err);
+                  setIsPlaying(false);
+                });
+              }
               console.log('After play, currentTime:', audio.currentTime);
             }
             audio.removeEventListener('canplaythrough', handleCanPlayThrough);
@@ -214,7 +247,13 @@ const AudioPlayer = ({ src, onDownload, phoneNumber, callDateTime, callType }) =
         } else {
           // Время установилось корректно
           if (wasPlaying) {
-            audio.play().catch(err => console.error('Play after seek failed:', err));
+            const seekPlayPromise = audio.play();
+            if (seekPlayPromise !== undefined) {
+              seekPlayPromise.catch(err => {
+                console.error('Play after seek failed:', err);
+                setIsPlaying(false);
+              });
+            }
           }
         }
 
@@ -243,7 +282,11 @@ const AudioPlayer = ({ src, onDownload, phoneNumber, callDateTime, callType }) =
   };
 
   const skipTime = (seconds, e) => {
-    e.stopPropagation(); // Предотвращаем всплытие события
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+
     const audio = audioRef.current;
     if (!audio) return;
 
@@ -290,6 +333,10 @@ const AudioPlayer = ({ src, onDownload, phoneNumber, callDateTime, callType }) =
         <button
           className="control-btn skip-btn"
           onClick={(e) => skipTime(-5, e)}
+          onTouchEnd={(e) => {
+            e.preventDefault();
+            skipTime(-5, e);
+          }}
           title="Назад 5 сек"
         >
           -5
@@ -298,6 +345,10 @@ const AudioPlayer = ({ src, onDownload, phoneNumber, callDateTime, callType }) =
         <button
           className="control-btn play-btn"
           onClick={togglePlay}
+          onTouchEnd={(e) => {
+            e.preventDefault();
+            togglePlay(e);
+          }}
           title={isPlaying ? 'Пауза' : 'Воспроизвести'}
         >
           {isPlaying ? '⏸' : '▶'}
@@ -306,6 +357,10 @@ const AudioPlayer = ({ src, onDownload, phoneNumber, callDateTime, callType }) =
         <button
           className="control-btn skip-btn"
           onClick={(e) => skipTime(5, e)}
+          onTouchEnd={(e) => {
+            e.preventDefault();
+            skipTime(5, e);
+          }}
           title="Вперед 5 сек"
         >
           +5

@@ -29,6 +29,10 @@
   font-size: 12px;
   font-weight: 500;
   color: #333;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 .control-btn:hover:not(:disabled) {
@@ -246,45 +250,54 @@
 @media (max-width: 480px) {
   .custom-audio-player {
     min-width: 280px;
-    padding: 6px;
-    gap: 6px;
+    padding: 8px;
+    gap: 8px;
     flex-wrap: wrap;
   }
 
   .player-controls {
-    gap: 4px;
+    gap: 6px;
   }
 
   .play-btn {
-    width: 28px;
-    height: 28px;
-    font-size: 12px;
+    width: 44px;
+    height: 44px;
+    font-size: 16px;
+    min-width: 44px;
+    min-height: 44px;
   }
 
   .skip-btn {
-    width: 24px;
-    height: 24px;
-    font-size: 9px;
+    width: 36px;
+    height: 36px;
+    font-size: 11px;
+    min-width: 36px;
+    min-height: 36px;
   }
 
   .volume-btn,
   .download-btn {
-    width: 24px;
-    height: 24px;
-    font-size: 12px;
+    width: 36px;
+    height: 36px;
+    font-size: 14px;
+    min-width: 36px;
+    min-height: 36px;
   }
 
   .time-display {
-    font-size: 10px;
-    min-width: 28px;
+    font-size: 11px;
+    min-width: 32px;
   }
 
   .progress-bar {
-    height: 7px;
+    height: 12px;
+    min-height: 44px;
+    display: flex;
+    align-items: center;
   }
 
-  .progress-bar:hover {
-    height: 8px;
+  .progress-fill {
+    height: 12px;
   }
 
   .progress-container {
