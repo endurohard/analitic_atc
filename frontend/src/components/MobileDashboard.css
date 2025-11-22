@@ -259,31 +259,34 @@
   display: grid;
   grid-template-columns: repeat(2, 1fr);
   gap: 12px;
+  min-height: 400px;
 }
 
-.stat-card {
+.mobile-stat-card {
   background: white;
-  padding: 20px;
   border-radius: 8px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-  text-align: center;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  position: relative;
+  overflow: hidden;
+  min-height: 180px;
+  height: 100%;
+  width: 100%;
+  padding: 10px;
 }
 
-.stat-value {
-  font-size: 32px;
-  font-weight: 700;
-  margin-bottom: 8px;
+/* ApexCharts стили для мобильной версии */
+.mobile-stat-card .apexcharts-canvas {
+  margin: 0 auto;
+  max-width: 100%;
+  max-height: 100%;
 }
 
-.stat-label {
-  font-size: 13px;
-  color: #999;
+.mobile-stat-card .apexcharts-text {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', sans-serif !important;
 }
-
-.stat-total .stat-value { color: #1890ff; }
-.stat-accepted .stat-value { color: #52c41a; }
-.stat-missed .stat-value { color: #ff4d4f; }
-.stat-not-redialed .stat-value { color: #fa8c16; }
 
 /* Calls List */
 .mobile-calls-list {
@@ -296,38 +299,62 @@
 .mobile-call-card {
   background: white;
   border-radius: 8px;
-  padding: 16px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
   border: 1px solid #f0f0f0;
-  transition: all 0.2s;
+  transition: all 0.3s ease;
+  overflow: hidden;
 }
 
-.mobile-call-card:active {
-  transform: scale(0.98);
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
+.mobile-call-card.collapsed {
+  padding: 12px 16px;
+}
+
+.mobile-call-card.expanded {
+  padding: 16px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
 }
 
 .mobile-card-header {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
+  cursor: pointer;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.mobile-call-card.collapsed .mobile-card-header {
+  margin-bottom: 0;
+  padding-bottom: 0;
+}
+
+.mobile-call-card.expanded .mobile-card-header {
   margin-bottom: 12px;
   padding-bottom: 12px;
   border-bottom: 1px solid #f0f0f0;
+}
+
+.mobile-card-left {
+  flex: 1;
+  min-width: 0;
 }
 
 .mobile-card-number {
   font-size: 16px;
   font-weight: 600;
   color: #1890ff;
-  flex: 1;
-  min-width: 0;
 }
 
 .mobile-mapping-name {
   font-size: 12px;
   color: #666;
   font-weight: 400;
+  margin-top: 2px;
+}
+
+.mobile-card-datetime {
+  font-size: 12px;
+  color: #999;
   margin-top: 4px;
 }
 
@@ -335,6 +362,17 @@
   display: flex;
   gap: 6px;
   flex-shrink: 0;
+  align-items: center;
+}
+
+.mobile-expand-icon {
+  color: #999;
+  transition: transform 0.3s ease;
+  margin-left: 4px;
+}
+
+.mobile-expand-icon.rotated {
+  transform: rotate(180deg);
 }
 
 .mobile-badge {
@@ -394,6 +432,51 @@
   border-top: 1px solid #f0f0f0;
 }
 
+/* Pagination */
+.mobile-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px;
+  background: white;
+  border-top: 1px solid #f0f0f0;
+  position: sticky;
+  bottom: 0;
+  z-index: 90;
+  box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.pagination-btn {
+  padding: 10px 16px;
+  background: #1890ff;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  min-width: 90px;
+}
+
+.pagination-btn:active:not(:disabled) {
+  background: #096dd9;
+  transform: scale(0.98);
+}
+
+.pagination-btn:disabled {
+  background: #d9d9d9;
+  color: #999;
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.pagination-info {
+  font-size: 14px;
+  font-weight: 600;
+  color: #333;
+}
+
 /* Responsive */
 @media (max-width: 480px) {
   .mobile-org-logo img {
@@ -410,8 +493,13 @@
     font-size: 10px;
   }
 
-  .stat-value {
-    font-size: 28px;
+  .mobile-stats {
+    min-height: 350px;
+  }
+
+  .mobile-stat-card {
+    min-height: 160px;
+    padding: 8px;
   }
 
   .mobile-call-card {
@@ -420,5 +508,15 @@
 
   .mobile-card-number {
     font-size: 15px;
+  }
+
+  .pagination-btn {
+    min-width: 70px;
+    padding: 8px 12px;
+    font-size: 13px;
+  }
+
+  .pagination-info {
+    font-size: 13px;
   }
 }

@@ -1,54 +1,127 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import Chart from 'react-apexcharts';
 import './MobileDashboard.css';
 import AudioPlayer from './AudioPlayer';
 
-// Мемоизированный компонент карточки звонка
-const CallCard = React.memo(({ call, API_URL, formatPhoneNumber, formatDateTime, formatDuration, mappingName }) => {
+// Мемоизированный компонент карточки звонка с accordion
+const CallCard = React.memo(({ call, API_URL, formatPhoneNumber, formatDateTime, formatDuration, mappingName, isUnprocessed }) => {
+  const [isExpanded, setIsExpanded] = useState(false);
+
+  // Поддержка обоих форматов API (старого и нового)
+  const phoneNumber = call.number || call.callfrom;
+  const dateTime = call.datetime || call.calldate;
+  const duration = call.duration || call.billsec;
+  const recording = call.recording || call.recordingfile;
+  const destination = call.callto1;
+
+  // Для необработанных звонков - всегда входящие пропущенные
+  // Для остальных - используем данные из API
+  const status = isUnprocessed ? 'not_answered' : (call.status || call.disposition);
+  const callType = isUnprocessed ? 'incoming' : (call.type || call.direction);
+
+  // Нормализуем значения (приводим к нижнему регистру для сравнения)
+  const statusLower = String(status).toLowerCase().replace(/[_\s]/g, '');
+  const callTypeLower = String(callType).toLowerCase();
+
+  // Определение статуса звонка (учитываем все варианты)
+  // API возвращает: answered, not_answered
+  // База может хранить: ANSWERED, NO ANSWER, BUSY
+  const isAnswered = statusLower === 'answered';
+  const isBusy = statusLower === 'busy';
+  const isNotAnswered = statusLower === 'notanswered' || statusLower === 'noanswer';
+
+  // Определение типа звонка
+  // API возвращает: incoming, outgoing
+  // База может хранить: Inbound, Outbound
+  const isInbound = callTypeLower === 'incoming' || callTypeLower === 'inbound';
+  const isOutbound = callTypeLower === 'outgoing' || callTypeLower === 'outbound';
+  const typeText = isInbound ? 'Входящий' : 'Исходящий';
+
+  // Текст статуса согласно Grafana маппингу:
+  // answered -> Отвечен (для всех типов)
+  // not_answered -> Не отвечен (для всех типов)
+  // busy -> В ожидании
+  let statusText;
+  if (isAnswered) {
+    statusText = 'Отвечен';
+  } else if (isBusy) {
+    statusText = 'В ожидании';
+  } else if (isNotAnswered) {
+    statusText = 'Не отвечен';
+  } else {
+    // Fallback для неизвестных статусов
+    statusText = 'Не отвечен';
+  }
+
   return (
-    <div className="mobile-call-card">
-      <div className="mobile-card-header">
-        <div className="mobile-card-number">
-          {formatPhoneNumber(call.callfrom)}
-          {mappingName && <div className="mobile-mapping-name">{mappingName}</div>}
+    <div className={`mobile-call-card ${isExpanded ? 'expanded' : 'collapsed'}`}>
+      {/* Компактный заголовок - всегда виден */}
+      <div className="mobile-card-header" onClick={() => setIsExpanded(!isExpanded)}>
+        <div className="mobile-card-left">
+          <div className="mobile-card-number">
+            {formatPhoneNumber(phoneNumber)}
+            {mappingName && <div className="mobile-mapping-name">{mappingName}</div>}
+          </div>
+          {/* Дата и время в компактном виде */}
+          <div className="mobile-card-datetime">
+            {formatDateTime(dateTime)}
+          </div>
         </div>
         <div className="mobile-card-badges">
-          <span className={`mobile-badge ${call.disposition === 'ANSWERED' ? 'badge-success' : 'badge-danger'}`}>
-            {call.disposition === 'ANSWERED' ? 'Принят' : call.disposition === 'BUSY' ? 'Занято' : 'Пропущен'}
+          <span className={`mobile-badge ${isAnswered ? 'badge-success' : 'badge-danger'}`}>
+            {statusText}
           </span>
-          <span className={`mobile-badge ${call.direction === 'inbound' ? 'badge-primary' : 'badge-secondary'}`}>
-            {call.direction === 'inbound' ? 'Вх' : 'Исх'}
+          <span className={`mobile-badge ${isInbound ? 'badge-primary' : 'badge-secondary'}`}>
+            {typeText}
           </span>
+          {/* Иконка раскрытия */}
+          <svg
+            className={`mobile-expand-icon ${isExpanded ? 'rotated' : ''}`}
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+          >
+            <path d="M6 9L12 15L18 9" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+          </svg>
         </div>
       </div>
 
-      <div className="mobile-card-body">
-        <div className="mobile-card-row">
-          <span className="mobile-label">Время:</span>
-          <span className="mobile-value">{formatDateTime(call.calldate)}</span>
-        </div>
-        {call.callto1 && (
-          <div className="mobile-card-row">
-            <span className="mobile-label">Куда:</span>
-            <span className="mobile-value">{formatPhoneNumber(call.callto1)}</span>
+      {/* Детали - показываются при раскрытии */}
+      {isExpanded && (
+        <>
+          <div className="mobile-card-body">
+            <div className="mobile-card-row">
+              <span className="mobile-label">Время:</span>
+              <span className="mobile-value">{formatDateTime(dateTime)}</span>
+            </div>
+            {destination && (
+              <div className="mobile-card-row">
+                <span className="mobile-label">Куда:</span>
+                <span className="mobile-value">{formatPhoneNumber(destination)}</span>
+              </div>
+            )}
+            {duration > 0 && (
+              <div className="mobile-card-row">
+                <span className="mobile-label">Длительность:</span>
+                <span className="mobile-value">{formatDuration(duration)}</span>
+              </div>
+            )}
           </div>
-        )}
-        {call.billsec > 0 && (
-          <div className="mobile-card-row">
-            <span className="mobile-label">Длительность:</span>
-            <span className="mobile-value">{formatDuration(call.billsec)}</span>
-          </div>
-        )}
-      </div>
 
-      {call.recordingfile && (
-        <div className="mobile-card-audio">
-          <AudioPlayer
-            src={`${API_URL}/api/recordings/${call.recordingfile}`}
-            compact={true}
-          />
-        </div>
+          {recording && (
+            <div className="mobile-card-audio">
+              <AudioPlayer
+                src={`${API_URL}/api/recordings/${recording}`}
+                phoneNumber={phoneNumber}
+                callDateTime={dateTime}
+                callType={callType}
+              />
+            </div>
+          )}
+        </>
       )}
     </div>
   );
@@ -72,6 +145,10 @@ const MobileDashboard = ({ user, organization, onLogout, onChangeOrganization })
   const [activeTab, setActiveTab] = useState('stats'); // stats, active, unprocessed, all
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+
+  // Пагинация
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
 
   const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
   const isAdmin = user?.organizations?.some(org => org.role === 'admin');
@@ -153,35 +230,38 @@ const MobileDashboard = ({ user, organization, onLogout, onChangeOrganization })
     return `${mins}:${String(secs).padStart(2, '0')}`;
   }, []);
 
-  // Мемоизированная фильтрация
+  // Мемоизированная фильтрация (поддержка обоих форматов API)
   const filteredCalls = useMemo(() => {
     if (!searchQuery) return calls;
-    return calls.filter(call =>
-      String(call.callfrom).includes(searchQuery) ||
-      String(call.callto1).includes(searchQuery) ||
-      String(call.callto2 || '').includes(searchQuery)
-    );
+    return calls.filter(call => {
+      const phone = String(call.number || call.callfrom || '');
+      const dest1 = String(call.callto1 || '');
+      const dest2 = String(call.callto2 || '');
+      return phone.includes(searchQuery) || dest1.includes(searchQuery) || dest2.includes(searchQuery);
+    });
   }, [calls, searchQuery]);
 
   const filteredActiveCalls = useMemo(() => {
     if (!searchQuery) return activeCalls;
-    return activeCalls.filter(call =>
-      String(call.callfrom).includes(searchQuery) ||
-      String(call.callto1).includes(searchQuery) ||
-      String(call.callto2 || '').includes(searchQuery)
-    );
+    return activeCalls.filter(call => {
+      const phone = String(call.number || call.callfrom || '');
+      const dest1 = String(call.callto1 || '');
+      const dest2 = String(call.callto2 || '');
+      return phone.includes(searchQuery) || dest1.includes(searchQuery) || dest2.includes(searchQuery);
+    });
   }, [activeCalls, searchQuery]);
 
   const filteredUnprocessedCalls = useMemo(() => {
     if (!searchQuery) return unprocessedCalls;
-    return unprocessedCalls.filter(call =>
-      String(call.callfrom).includes(searchQuery) ||
-      String(call.callto1).includes(searchQuery) ||
-      String(call.callto2 || '').includes(searchQuery)
-    );
+    return unprocessedCalls.filter(call => {
+      const phone = String(call.number || call.callfrom || '');
+      const dest1 = String(call.callto1 || '');
+      const dest2 = String(call.callto2 || '');
+      return phone.includes(searchQuery) || dest1.includes(searchQuery) || dest2.includes(searchQuery);
+    });
   }, [unprocessedCalls, searchQuery]);
 
-  const renderCallCard = useCallback((call) => {
+  const renderCallCard = useCallback((call, isUnprocessed = false) => {
     const mappingName = getPhoneMappingName(call.callto1) || getPhoneMappingName(call.callto2);
 
     return (
@@ -193,61 +273,372 @@ const MobileDashboard = ({ user, organization, onLogout, onChangeOrganization })
         formatDateTime={formatDateTime}
         formatDuration={formatDuration}
         mappingName={mappingName}
+        isUnprocessed={isUnprocessed}
       />
     );
   }, [API_URL, formatPhoneNumber, formatDateTime, formatDuration, getPhoneMappingName]);
 
+  // Функция для получения данных текущей страницы
+  const getPaginatedData = (data) => {
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    const endIndex = startIndex + itemsPerPage;
+    return data.slice(startIndex, endIndex);
+  };
+
+  // Получаем общее количество страниц
+  const getTotalPages = (data) => {
+    return Math.ceil(data.length / itemsPerPage);
+  };
+
+  // Компонент пагинации
+  const renderPagination = (data) => {
+    const totalPages = getTotalPages(data);
+    if (totalPages <= 1) return null;
+
+    return (
+      <div className="mobile-pagination">
+        <button
+          className="pagination-btn"
+          onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+          disabled={currentPage === 1}
+        >
+          ← Назад
+        </button>
+        <span className="pagination-info">
+          {currentPage} / {totalPages}
+        </span>
+        <button
+          className="pagination-btn"
+          onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+          disabled={currentPage === totalPages}
+        >
+          Вперёд →
+        </button>
+      </div>
+    );
+  };
+
+  // Сбрасываем страницу при смене вкладки или поиска
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [activeTab, searchQuery]);
+
   const renderContent = () => {
     switch (activeTab) {
       case 'stats':
+        // RadialBar для "Общее количество" (всегда 100%)
+        const totalOptions = {
+          series: [100],
+          options: {
+            chart: {
+              type: 'radialBar',
+              toolbar: { show: false }
+            },
+            plotOptions: {
+              radialBar: {
+                startAngle: -135,
+                endAngle: 135,
+                hollow: {
+                  margin: 0,
+                  size: '70%',
+                  background: 'transparent'
+                },
+                track: {
+                  background: '#f0f0f0',
+                  strokeWidth: '67%'
+                },
+                dataLabels: {
+                  name: {
+                    offsetY: -5,
+                    show: true,
+                    color: '#888',
+                    fontSize: '11px'
+                  },
+                  value: {
+                    formatter: function() {
+                      return statistics.total;
+                    },
+                    color: '#111',
+                    fontSize: '20px',
+                    fontWeight: 'bold',
+                    show: true
+                  }
+                }
+              }
+            },
+            fill: {
+              type: 'gradient',
+              gradient: {
+                shade: 'dark',
+                type: 'horizontal',
+                shadeIntensity: 0.5,
+                gradientToColors: ['#1890ff'],
+                inverseColors: true,
+                opacityFrom: 1,
+                opacityTo: 1,
+                stops: [0, 100]
+              }
+            },
+            stroke: {
+              lineCap: 'round'
+            },
+            labels: ['Всего звонков']
+          }
+        };
+
+        // RadialBar для "Принятые"
+        const acceptedOptions = {
+          series: [statistics.total > 0 ? (statistics.accepted / statistics.total) * 100 : 0],
+          options: {
+            chart: {
+              type: 'radialBar',
+              toolbar: { show: false }
+            },
+            plotOptions: {
+              radialBar: {
+                startAngle: -135,
+                endAngle: 135,
+                hollow: {
+                  margin: 0,
+                  size: '70%',
+                  background: 'transparent'
+                },
+                track: {
+                  background: '#f0f0f0',
+                  strokeWidth: '67%'
+                },
+                dataLabels: {
+                  name: {
+                    offsetY: -5,
+                    show: true,
+                    color: '#888',
+                    fontSize: '11px'
+                  },
+                  value: {
+                    formatter: function() {
+                      return statistics.accepted;
+                    },
+                    color: '#111',
+                    fontSize: '20px',
+                    fontWeight: 'bold',
+                    show: true
+                  }
+                }
+              }
+            },
+            fill: {
+              type: 'gradient',
+              gradient: {
+                shade: 'dark',
+                type: 'horizontal',
+                shadeIntensity: 0.5,
+                gradientToColors: ['#52c41a'],
+                inverseColors: true,
+                opacityFrom: 1,
+                opacityTo: 1,
+                stops: [0, 100]
+              }
+            },
+            stroke: {
+              lineCap: 'round'
+            },
+            labels: ['Принятых']
+          }
+        };
+
+        // RadialBar для "Пропущенные"
+        const missedOptions = {
+          series: [statistics.total > 0 ? (statistics.missed / statistics.total) * 100 : 0],
+          options: {
+            chart: {
+              type: 'radialBar',
+              toolbar: { show: false }
+            },
+            plotOptions: {
+              radialBar: {
+                startAngle: -135,
+                endAngle: 135,
+                hollow: {
+                  margin: 0,
+                  size: '70%',
+                  background: 'transparent'
+                },
+                track: {
+                  background: '#f0f0f0',
+                  strokeWidth: '67%'
+                },
+                dataLabels: {
+                  name: {
+                    offsetY: -5,
+                    show: true,
+                    color: '#888',
+                    fontSize: '11px'
+                  },
+                  value: {
+                    formatter: function() {
+                      return statistics.missed;
+                    },
+                    color: '#111',
+                    fontSize: '20px',
+                    fontWeight: 'bold',
+                    show: true
+                  }
+                }
+              }
+            },
+            fill: {
+              type: 'gradient',
+              gradient: {
+                shade: 'dark',
+                type: 'horizontal',
+                shadeIntensity: 0.5,
+                gradientToColors: ['#fa8c16'],
+                inverseColors: true,
+                opacityFrom: 1,
+                opacityTo: 1,
+                stops: [0, 100]
+              }
+            },
+            stroke: {
+              lineCap: 'round'
+            },
+            labels: ['Пропущенных']
+          }
+        };
+
+        // RadialBar для "Не перезвонили"
+        const notRedialedOptions = {
+          series: [statistics.missed > 0 ? (statistics.notRedialed / statistics.missed) * 100 : 0],
+          options: {
+            chart: {
+              type: 'radialBar',
+              toolbar: { show: false }
+            },
+            plotOptions: {
+              radialBar: {
+                startAngle: -135,
+                endAngle: 135,
+                hollow: {
+                  margin: 0,
+                  size: '70%',
+                  background: 'transparent'
+                },
+                track: {
+                  background: '#f0f0f0',
+                  strokeWidth: '67%'
+                },
+                dataLabels: {
+                  name: {
+                    offsetY: -5,
+                    show: true,
+                    color: '#888',
+                    fontSize: '11px'
+                  },
+                  value: {
+                    formatter: function() {
+                      return statistics.notRedialed;
+                    },
+                    color: '#111',
+                    fontSize: '20px',
+                    fontWeight: 'bold',
+                    show: true
+                  }
+                }
+              }
+            },
+            fill: {
+              type: 'gradient',
+              gradient: {
+                shade: 'dark',
+                type: 'horizontal',
+                shadeIntensity: 0.5,
+                gradientToColors: ['#ff4d4f'],
+                inverseColors: true,
+                opacityFrom: 1,
+                opacityTo: 1,
+                stops: [0, 100]
+              }
+            },
+            stroke: {
+              lineCap: 'round'
+            },
+            labels: ['Не перезвонили']
+          }
+        };
+
         return (
           <div className="mobile-stats">
-            <div className="stat-card stat-total">
-              <div className="stat-value">{statistics.total}</div>
-              <div className="stat-label">Всего звонков</div>
+            <div className="mobile-stat-card">
+              <Chart
+                options={totalOptions.options}
+                series={totalOptions.series}
+                type="radialBar"
+                height="100%"
+              />
             </div>
-            <div className="stat-card stat-accepted">
-              <div className="stat-value">{statistics.accepted}</div>
-              <div className="stat-label">Принятых</div>
+            <div className="mobile-stat-card">
+              <Chart
+                options={acceptedOptions.options}
+                series={acceptedOptions.series}
+                type="radialBar"
+                height="100%"
+              />
             </div>
-            <div className="stat-card stat-missed">
-              <div className="stat-value">{statistics.missed}</div>
-              <div className="stat-label">Пропущенных</div>
+            <div className="mobile-stat-card">
+              <Chart
+                options={missedOptions.options}
+                series={missedOptions.series}
+                type="radialBar"
+                height="100%"
+              />
             </div>
-            <div className="stat-card stat-not-redialed">
-              <div className="stat-value">{statistics.notRedialed}</div>
-              <div className="stat-label">Не перезвонили</div>
+            <div className="mobile-stat-card">
+              <Chart
+                options={notRedialedOptions.options}
+                series={notRedialedOptions.series}
+                type="radialBar"
+                height="100%"
+              />
             </div>
           </div>
         );
 
       case 'active':
         return (
-          <div className="mobile-calls-list">
-            {filteredActiveCalls.length === 0 ? (
-              <div className="mobile-empty">Нет активных звонков</div>
-            ) : (
-              filteredActiveCalls.map(renderCallCard)
-            )}
-          </div>
+          <>
+            <div className="mobile-calls-list">
+              {filteredActiveCalls.length === 0 ? (
+                <div className="mobile-empty">Нет активных звонков</div>
+              ) : (
+                getPaginatedData(filteredActiveCalls).map(call => renderCallCard(call, false))
+              )}
+            </div>
+            {renderPagination(filteredActiveCalls)}
+          </>
         );
 
       case 'unprocessed':
         return (
-          <div className="mobile-calls-list">
-            {filteredUnprocessedCalls.length === 0 ? (
-              <div className="mobile-empty">Нет необработанных звонков</div>
-            ) : (
-              filteredUnprocessedCalls.map(renderCallCard)
-            )}
-          </div>
+          <>
+            <div className="mobile-calls-list">
+              {filteredUnprocessedCalls.length === 0 ? (
+                <div className="mobile-empty">Нет необработанных звонков</div>
+              ) : (
+                getPaginatedData(filteredUnprocessedCalls).map(call => renderCallCard(call, true))
+              )}
+            </div>
+            {renderPagination(filteredUnprocessedCalls)}
+          </>
         );
 
       case 'all':
         return (
-          <div className="mobile-calls-list">
-            {filteredCalls.map(renderCallCard)}
-          </div>
+          <>
+            <div className="mobile-calls-list">
+              {getPaginatedData(filteredCalls).map(call => renderCallCard(call, false))}
+            </div>
+            {renderPagination(filteredCalls)}
+          </>
         );
 
       default:
