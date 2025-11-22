@@ -250,58 +250,56 @@
 @media (max-width: 480px) {
   .custom-audio-player {
     min-width: 280px;
-    padding: 8px;
-    gap: 8px;
-    flex-wrap: wrap;
+    padding: 6px;
+    gap: 6px;
+    flex-wrap: nowrap;
   }
 
   .player-controls {
-    gap: 6px;
+    gap: 4px;
   }
 
   .play-btn {
-    width: 44px;
-    height: 44px;
-    font-size: 16px;
-    min-width: 44px;
-    min-height: 44px;
+    width: 32px;
+    height: 32px;
+    font-size: 13px;
+    min-width: 32px;
+    min-height: 32px;
   }
 
   .skip-btn {
-    width: 36px;
-    height: 36px;
-    font-size: 11px;
-    min-width: 36px;
-    min-height: 36px;
+    width: 28px;
+    height: 28px;
+    font-size: 9px;
+    min-width: 28px;
+    min-height: 28px;
   }
 
   .volume-btn,
   .download-btn {
-    width: 36px;
-    height: 36px;
-    font-size: 14px;
-    min-width: 36px;
-    min-height: 36px;
+    width: 28px;
+    height: 28px;
+    font-size: 12px;
+    min-width: 28px;
+    min-height: 28px;
   }
 
   .time-display {
-    font-size: 11px;
-    min-width: 32px;
+    font-size: 10px;
+    min-width: 30px;
   }
 
   .progress-bar {
-    height: 12px;
-    min-height: 44px;
-    display: flex;
-    align-items: center;
+    height: 10px;
+    min-height: 10px;
   }
 
   .progress-fill {
-    height: 12px;
+    height: 10px;
   }
 
   .progress-container {
-    min-width: 150px;
-    gap: 6px;
+    min-width: 120px;
+    gap: 4px;
   }
 }

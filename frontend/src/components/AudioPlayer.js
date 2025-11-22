@@ -158,9 +158,6 @@ const AudioPlayer = ({ src, onDownload, phoneNumber, callDateTime, callType }) =
             console.error('Failed to play audio:', error);
             // Сбрасываем состояние воспроизведения при ошибке
             setIsPlaying(false);
-
-            // Показываем уведомление пользователю
-            alert('Не удалось воспроизвести аудио. Возможно, требуется взаимодействие с пользователем.');
           });
       }
 
