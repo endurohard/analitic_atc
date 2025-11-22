@@ -468,7 +468,6 @@ const Dashboard = ({ user, organization, onLogout, onChangeOrganization }) => {
               timeRange={useCustomDates ? undefined : timeRange}
               startDate={useCustomDates ? startDate : undefined}
               endDate={useCustomDates ? endDate : undefined}
-              mappingStatistics={mappingStatistics}
             />
           </div>
         </div>
@@ -533,6 +532,43 @@ const Dashboard = ({ user, organization, onLogout, onChangeOrganization }) => {
           </div>
         </div>
       </GridLayout>
+
+      {/* Статистика по точкам - отдельная секция снизу */}
+      {mappingStatistics.length > 0 && (
+        <div className="mapping-stats-section-wrapper">
+          <div className="section">
+            <div className="section-header">
+              <h3>Статистика по точкам</h3>
+            </div>
+            <div className="section-content">
+              <div className="mapping-stats-grid">
+                {mappingStatistics.map(mapping => (
+                  <div key={mapping.id} className="mapping-stat-card">
+                    <div className="mapping-stat-header">
+                      <div className="mapping-stat-name" style={{ color: mapping.color || '#1890ff' }}>
+                        {mapping.display_name}
+                      </div>
+                      <div className="mapping-stat-total">
+                        {mapping.total_calls} звонков
+                      </div>
+                    </div>
+                    <div className="mapping-stat-body">
+                      <div className="mapping-stat-item">
+                        <span className="mapping-stat-label">Принято</span>
+                        <span className="mapping-stat-value success">{mapping.answered_calls}</span>
+                      </div>
+                      <div className="mapping-stat-item">
+                        <span className="mapping-stat-label">Пропущено</span>
+                        <span className="mapping-stat-value danger">{mapping.missed_calls}</span>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

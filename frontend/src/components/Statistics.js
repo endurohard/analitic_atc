@@ -3,7 +3,7 @@ import Chart from 'react-apexcharts';
 import CallDetailsModal from './CallDetailsModal';
 import './Statistics.css';
 
-const Statistics = React.memo(({ statistics, orgId, timeRange, startDate, endDate, mappingStatistics = [] }) => {
+const Statistics = React.memo(({ statistics, orgId, timeRange, startDate, endDate }) => {
   const [modalOpen, setModalOpen] = useState(false);
   const [modalCategory, setModalCategory] = useState(null);
 
@@ -326,37 +326,6 @@ const Statistics = React.memo(({ statistics, orgId, timeRange, startDate, endDat
           />
         </div>
       </div>
-
-      {/* Статистика по маппингам (точкам) */}
-      {mappingStatistics.length > 0 && (
-        <div className="mapping-stats-section">
-          <h3 className="mapping-stats-title">Статистика по точкам</h3>
-          <div className="mapping-stats-grid">
-            {mappingStatistics.map(mapping => (
-              <div key={mapping.id} className="mapping-stat-card">
-                <div className="mapping-stat-header">
-                  <div className="mapping-stat-name" style={{ color: mapping.color || '#1890ff' }}>
-                    {mapping.display_name}
-                  </div>
-                  <div className="mapping-stat-total">
-                    {mapping.total_calls} звонков
-                  </div>
-                </div>
-                <div className="mapping-stat-body">
-                  <div className="mapping-stat-item">
-                    <span className="mapping-stat-label">Принято</span>
-                    <span className="mapping-stat-value success">{mapping.answered_calls}</span>
-                  </div>
-                  <div className="mapping-stat-item">
-                    <span className="mapping-stat-label">Пропущено</span>
-                    <span className="mapping-stat-value danger">{mapping.missed_calls}</span>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
 
       <CallDetailsModal
         isOpen={modalOpen}

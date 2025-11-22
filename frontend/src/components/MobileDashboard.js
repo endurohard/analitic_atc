@@ -142,7 +142,7 @@ const MobileDashboard = ({ user, organization, onLogout, onChangeOrganization })
   const [timeRange, setTimeRange] = useState('24h');
   const [refreshInterval, setRefreshInterval] = useState(5);
   const [callType, setCallType] = useState('all');
-  const [activeTab, setActiveTab] = useState('stats'); // stats, active, unprocessed, all
+  const [activeTab, setActiveTab] = useState('stats'); // stats, mappings, active, unprocessed, all
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [lastUpdateTime, setLastUpdateTime] = useState(null);
@@ -623,34 +623,37 @@ const MobileDashboard = ({ user, organization, onLogout, onChangeOrganization })
                 height="100%"
               />
             </div>
+          </div>
+        );
 
-            {/* Статистика по маппингам (точкам) */}
-            {mappingStatistics.length > 0 && (
-              <div className="mobile-mapping-stats">
-                <h3 className="mobile-mapping-stats-title">Статистика по точкам</h3>
-                {mappingStatistics.map(mapping => (
-                  <div key={mapping.id} className="mobile-mapping-stat-card">
-                    <div className="mobile-mapping-stat-header">
-                      <div className="mobile-mapping-stat-name" style={{ color: mapping.color || '#1890ff' }}>
-                        {mapping.display_name}
-                      </div>
-                      <div className="mobile-mapping-stat-total">
-                        {mapping.total_calls} звонков
-                      </div>
+      case 'mappings':
+        return (
+          <div className="mobile-mapping-stats">
+            {mappingStatistics.length === 0 ? (
+              <div className="mobile-empty">Нет настроенных точек</div>
+            ) : (
+              mappingStatistics.map(mapping => (
+                <div key={mapping.id} className="mobile-mapping-stat-card">
+                  <div className="mobile-mapping-stat-header">
+                    <div className="mobile-mapping-stat-name" style={{ color: mapping.color || '#1890ff' }}>
+                      {mapping.display_name}
                     </div>
-                    <div className="mobile-mapping-stat-body">
-                      <div className="mobile-mapping-stat-item">
-                        <span className="mobile-mapping-stat-label">Принято:</span>
-                        <span className="mobile-mapping-stat-value success">{mapping.answered_calls}</span>
-                      </div>
-                      <div className="mobile-mapping-stat-item">
-                        <span className="mobile-mapping-stat-label">Пропущено:</span>
-                        <span className="mobile-mapping-stat-value danger">{mapping.missed_calls}</span>
-                      </div>
+                    <div className="mobile-mapping-stat-total">
+                      {mapping.total_calls} звонков
                     </div>
                   </div>
-                ))}
-              </div>
+                  <div className="mobile-mapping-stat-body">
+                    <div className="mobile-mapping-stat-item">
+                      <span className="mobile-mapping-stat-label">Принято:</span>
+                      <span className="mobile-mapping-stat-value success">{mapping.answered_calls}</span>
+                    </div>
+                    <div className="mobile-mapping-stat-item">
+                      <span className="mobile-mapping-stat-label">Пропущено:</span>
+                      <span className="mobile-mapping-stat-value danger">{mapping.missed_calls}</span>
+                    </div>
+                  </div>
+                </div>
+              ))
             )}
           </div>
         );
@@ -812,6 +815,19 @@ const MobileDashboard = ({ user, organization, onLogout, onChangeOrganization })
           </svg>
           <span>Статистика</span>
         </button>
+        {mappingStatistics.length > 0 && (
+          <button
+            className={activeTab === 'mappings' ? 'active' : ''}
+            onClick={() => setActiveTab('mappings')}
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+              <circle cx="5" cy="12" r="2" fill="currentColor"/>
+              <circle cx="12" cy="12" r="2" fill="currentColor"/>
+              <circle cx="19" cy="12" r="2" fill="currentColor"/>
+            </svg>
+            <span>Точки</span>
+          </button>
+        )}
         <button
           className={activeTab === 'active' ? 'active' : ''}
           onClick={() => setActiveTab('active')}

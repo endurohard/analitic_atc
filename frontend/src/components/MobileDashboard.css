@@ -534,19 +534,9 @@
 /* Статистика по маппингам (точкам) */
 .mobile-mapping-stats {
   padding: 16px;
-  background: white;
-  margin: 16px;
-  border-radius: 8px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-}
-
-.mobile-mapping-stats-title {
-  font-size: 16px;
-  font-weight: 600;
-  color: #333;
-  margin: 0 0 16px 0;
-  padding-bottom: 12px;
-  border-bottom: 2px solid #f0f0f0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
 }
 
 .mobile-mapping-stat-card {
