@@ -14,7 +14,6 @@ const CallCard = React.memo(({ call, API_URL, formatPhoneNumber, formatDateTime,
   const dateTime = call.datetime || call.calldate;
   const duration = call.duration || call.billsec;
   const recording = call.recording || call.recordingfile;
-  const destination = call.callto1;
 
   // Для необработанных звонков - всегда входящие пропущенные
   // Для остальных - используем данные из API
@@ -97,10 +96,10 @@ const CallCard = React.memo(({ call, API_URL, formatPhoneNumber, formatDateTime,
               <span className="mobile-label">Время:</span>
               <span className="mobile-value">{formatDateTime(dateTime)}</span>
             </div>
-            {destination && (
+            {mappingName && (
               <div className="mobile-card-row">
                 <span className="mobile-label">Куда:</span>
-                <span className="mobile-value">{formatPhoneNumber(destination)}</span>
+                <span className="mobile-value">{mappingName}</span>
               </div>
             )}
             {duration > 0 && (
