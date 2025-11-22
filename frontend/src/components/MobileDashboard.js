@@ -114,7 +114,7 @@ const CallCard = React.memo(({ call, API_URL, formatPhoneNumber, formatDateTime,
           {recording && (
             <div className="mobile-card-audio">
               <AudioPlayer
-                src={`${API_URL}/api/recordings/${recording}`}
+                src={`https://itatc.ru/app/download-url/${recording}`}
                 phoneNumber={phoneNumber}
                 callDateTime={dateTime}
                 callType={callType}

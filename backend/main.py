@@ -1,13 +1,14 @@
 from fastapi import FastAPI, Depends, HTTPException, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, StreamingResponse
 from sqlalchemy.orm import Session
 from sqlalchemy import text, func, and_
 from typing import List
 import os
 import shutil
 import uuid
+import httpx
 from datetime import datetime, timedelta
 from passlib.context import CryptContext
 
@@ -40,6 +41,59 @@ os.makedirs(UPLOAD_DIR, exist_ok=True)
 # Монтируем статические файлы
 app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 app.mount("/api/uploads", StaticFiles(directory="uploads"), name="api-uploads")
+
+@app.get("/api/recordings/{filename:path}")
+async def get_recording(filename: str):
+    """
+    Получение аудио записи звонка
+    Проксирует запросы к серверу с записями или отдает локальные файлы
+    """
+    try:
+        recordings_url = os.getenv('RECORDINGS_URL')
+        recordings_path = os.getenv('RECORDINGS_PATH')
+
+        # Если настроен URL для записей, используем проксирование
+        if recordings_url:
+            full_url = f"{recordings_url}/{filename}"
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                try:
+                    response = await client.get(full_url)
+                    if response.status_code == 200:
+                        return StreamingResponse(
+                            iter([response.content]),
+                            media_type="audio/wav",
+                            headers={
+                                "Accept-Ranges": "bytes",
+                                "Content-Length": str(len(response.content))
+                            }
+                        )
+                    else:
+                        raise HTTPException(status_code=404, detail="Recording not found on remote server")
+                except httpx.RequestError as e:
+                    raise HTTPException(status_code=502, detail=f"Error fetching recording: {str(e)}")
+
+        # Если настроен локальный путь, отдаем файл напрямую
+        elif recordings_path:
+            file_path = os.path.join(recordings_path, filename)
+            if os.path.exists(file_path):
+                return FileResponse(
+                    file_path,
+                    media_type="audio/wav",
+                    headers={"Accept-Ranges": "bytes"}
+                )
+            else:
+                raise HTTPException(status_code=404, detail="Recording not found")
+
+        else:
+            raise HTTPException(
+                status_code=500,
+                detail="Recordings path not configured. Please set RECORDINGS_URL or RECORDINGS_PATH in .env"
+            )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error serving recording: {str(e)}")
 
 @app.get("/")
 def read_root():
