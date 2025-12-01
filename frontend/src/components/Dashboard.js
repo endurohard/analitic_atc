@@ -397,9 +397,14 @@ const Dashboard = ({ user, organization, onLogout, onChangeOrganization }) => {
           </select>
           <select
             className="time-selector"
-            value={timeRange}
+            value={useCustomDates ? 'custom' : timeRange}
             onChange={(e) => {
-              setTimeRange(e.target.value);
+              if (e.target.value === 'custom') {
+                setUseCustomDates(true);
+              } else {
+                setUseCustomDates(false);
+                setTimeRange(e.target.value);
+              }
               if (isMobile) setMobileMenuOpen(false);
             }}
           >
@@ -407,7 +412,26 @@ const Dashboard = ({ user, organization, onLogout, onChangeOrganization }) => {
             <option value="24h">Последние 24 часа</option>
             <option value="7d">Последние 7 дней</option>
             <option value="30d">Последние 30 дней</option>
+            <option value="custom">Произвольный период</option>
           </select>
+          {useCustomDates && (
+            <>
+              <input
+                type="date"
+                className="date-picker"
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+                title="Дата начала"
+              />
+              <input
+                type="date"
+                className="date-picker"
+                value={endDate}
+                onChange={(e) => setEndDate(e.target.value)}
+                title="Дата окончания"
+              />
+            </>
+          )}
           {isAdmin && (
             <>
               <button className="btn btn-primary" onClick={() => {

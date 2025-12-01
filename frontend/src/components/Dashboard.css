@@ -99,6 +99,27 @@
   box-shadow: 0 0 0 2px rgba(24, 144, 255, 0.2);
 }
 
+.date-picker {
+  padding: 6px 10px;
+  border: 1px solid #d9d9d9;
+  border-radius: 4px;
+  font-size: 13px;
+  cursor: pointer;
+  background: white;
+  transition: all 0.3s ease;
+  min-width: 140px;
+}
+
+.date-picker:hover {
+  border-color: #1890ff;
+}
+
+.date-picker:focus {
+  outline: none;
+  border-color: #1890ff;
+  box-shadow: 0 0 0 2px rgba(24, 144, 255, 0.2);
+}
+
 .dashboard-content {
   padding: 16px;
   max-width: 100%;

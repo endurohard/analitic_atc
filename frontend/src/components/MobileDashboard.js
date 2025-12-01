@@ -146,6 +146,9 @@ const MobileDashboard = ({ user, organization, onLogout, onChangeOrganization })
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [lastUpdateTime, setLastUpdateTime] = useState(null);
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
+  const [useCustomDates, setUseCustomDates] = useState(false);
 
   // Пагинация
   const [currentPage, setCurrentPage] = useState(1);
@@ -159,24 +162,43 @@ const MobileDashboard = ({ user, organization, onLogout, onChangeOrganization })
     fetchData();
     const interval = setInterval(fetchData, refreshInterval * 1000);
     return () => clearInterval(interval);
-  }, [organization, timeRange, refreshInterval, callType]);
+  }, [organization, timeRange, refreshInterval, callType, startDate, endDate, useCustomDates]);
 
   const fetchData = async () => {
     setLoading(true);
     try {
       const callsParams = { orgId: organization.orgId, limit: 100, timeRange };
       if (callType !== 'all') callsParams.direction = callType;
+      if (useCustomDates) {
+        if (startDate) callsParams.startDate = startDate;
+        if (endDate) callsParams.endDate = endDate;
+        delete callsParams.timeRange;
+      }
+
+      const unprocessedParams = { orgId: organization.orgId, limit: 100, timeRange };
+      if (useCustomDates) {
+        if (startDate) unprocessedParams.startDate = startDate;
+        if (endDate) unprocessedParams.endDate = endDate;
+        delete unprocessedParams.timeRange;
+      }
+
+      const statsParams = { orgId: organization.orgId, timeRange };
+      if (useCustomDates) {
+        if (startDate) statsParams.startDate = startDate;
+        if (endDate) statsParams.endDate = endDate;
+        delete statsParams.timeRange;
+      }
 
       const requests = [
         axios.get(`${API_URL}/api/calls`, { params: callsParams }),
-        axios.get(`${API_URL}/api/calls-unprocessed`, { params: { orgId: organization.orgId, limit: 100, timeRange } }),
-        axios.get(`${API_URL}/api/statistics/summary`, { params: { orgId: organization.orgId, timeRange } }),
+        axios.get(`${API_URL}/api/calls-unprocessed`, { params: unprocessedParams }),
+        axios.get(`${API_URL}/api/statistics/summary`, { params: statsParams }),
         axios.get(`${API_URL}/api/calls-active`, { params: { orgId: organization.orgId } })
       ];
 
       // Добавляем запрос статистики по маппингам если они есть
       if (phoneMappings.length > 0) {
-        requests.push(axios.get(`${API_URL}/api/statistics/by-mapping`, { params: { orgId: organization.orgId, timeRange } }));
+        requests.push(axios.get(`${API_URL}/api/statistics/by-mapping`, { params: statsParams }));
       }
 
       const responses = await Promise.all(requests);
@@ -744,13 +766,46 @@ const MobileDashboard = ({ user, organization, onLogout, onChangeOrganization })
 
         <div className="mobile-menu-section">
           <label>Период</label>
-          <select value={timeRange} onChange={(e) => { setTimeRange(e.target.value); setMobileMenuOpen(false); }}>
+          <select
+            value={useCustomDates ? 'custom' : timeRange}
+            onChange={(e) => {
+              if (e.target.value === 'custom') {
+                setUseCustomDates(true);
+              } else {
+                setUseCustomDates(false);
+                setTimeRange(e.target.value);
+                setMobileMenuOpen(false);
+              }
+            }}
+          >
             <option value="1h">1 час</option>
             <option value="24h">24 часа</option>
             <option value="7d">7 дней</option>
             <option value="30d">30 дней</option>
+            <option value="custom">Произвольный период</option>
           </select>
         </div>
+
+        {useCustomDates && (
+          <>
+            <div className="mobile-menu-section">
+              <label>Дата начала</label>
+              <input
+                type="date"
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+              />
+            </div>
+            <div className="mobile-menu-section">
+              <label>Дата окончания</label>
+              <input
+                type="date"
+                value={endDate}
+                onChange={(e) => setEndDate(e.target.value)}
+              />
+            </div>
+          </>
+        )}
 
         <div className="mobile-menu-section">
           <label>Тип звонка</label>
