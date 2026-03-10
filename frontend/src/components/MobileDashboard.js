@@ -139,7 +139,7 @@ const MobileDashboard = ({ user, organization, onLogout, onChangeOrganization })
   });
   const [mappingStatistics, setMappingStatistics] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [timeRange, setTimeRange] = useState('24h');
+  const [timeRange, setTimeRange] = useState('30d');
   const [refreshInterval, setRefreshInterval] = useState(5);
   const [callType, setCallType] = useState('all');
   const [activeTab, setActiveTab] = useState('stats'); // stats, mappings, active, unprocessed, all
@@ -155,7 +155,9 @@ const MobileDashboard = ({ user, organization, onLogout, onChangeOrganization })
   const itemsPerPage = 10;
 
   const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
-  const isAdmin = user?.organizations?.some(org => org.role === 'admin');
+  // Проверка, является ли пользователь администратором текущей организации
+  const isAdmin = user?.organizations?.find(org => org.orgId === organization?.orgId)?.role === 'admin';
+  const canChangeOrg = user?.organizations?.length > 1;
   const phoneMappings = organization?.phone_mappings || [];
 
   useEffect(() => {
@@ -204,7 +206,7 @@ const MobileDashboard = ({ user, organization, onLogout, onChangeOrganization })
       const responses = await Promise.all(requests);
       const [callsRes, unprocessedRes, statsRes, activeRes, mappingStatsRes] = responses;
 
-      setCalls(callsRes.data);
+      setCalls(callsRes.data.calls || callsRes.data);
       setUnprocessedCalls(unprocessedRes.data);
       setActiveCalls(activeRes.data);
 
@@ -615,6 +617,7 @@ const MobileDashboard = ({ user, organization, onLogout, onChangeOrganization })
           <div className="mobile-stats">
             <div className="mobile-stat-card">
               <Chart
+                key={`total-${statistics.total}`}
                 options={totalOptions.options}
                 series={totalOptions.series}
                 type="radialBar"
@@ -623,6 +626,7 @@ const MobileDashboard = ({ user, organization, onLogout, onChangeOrganization })
             </div>
             <div className="mobile-stat-card">
               <Chart
+                key={`accepted-${statistics.accepted}`}
                 options={acceptedOptions.options}
                 series={acceptedOptions.series}
                 type="radialBar"
@@ -631,6 +635,7 @@ const MobileDashboard = ({ user, organization, onLogout, onChangeOrganization })
             </div>
             <div className="mobile-stat-card">
               <Chart
+                key={`missed-${statistics.missed}`}
                 options={missedOptions.options}
                 series={missedOptions.series}
                 type="radialBar"
@@ -639,6 +644,7 @@ const MobileDashboard = ({ user, organization, onLogout, onChangeOrganization })
             </div>
             <div className="mobile-stat-card">
               <Chart
+                key={`redialed-${statistics.notRedialed}`}
                 options={notRedialedOptions.options}
                 series={notRedialedOptions.series}
                 type="radialBar"
@@ -828,14 +834,14 @@ const MobileDashboard = ({ user, organization, onLogout, onChangeOrganization })
         </div>
 
         {isAdmin && (
-          <>
-            <button className="mobile-menu-btn" onClick={() => { navigate('/admin'); setMobileMenuOpen(false); }}>
-              Админ панель
-            </button>
-            <button className="mobile-menu-btn" onClick={() => { onChangeOrganization(); setMobileMenuOpen(false); }}>
-              Сменить организацию
-            </button>
-          </>
+          <button className="mobile-menu-btn" onClick={() => { navigate('/admin'); setMobileMenuOpen(false); }}>
+            Админ панель
+          </button>
+        )}
+        {canChangeOrg && (
+          <button className="mobile-menu-btn" onClick={() => { onChangeOrganization(); setMobileMenuOpen(false); }}>
+            Сменить организацию
+          </button>
         )}
 
         <button className="mobile-menu-btn mobile-menu-btn-logout" onClick={() => { onLogout(); setMobileMenuOpen(false); }}>
@@ -870,7 +876,7 @@ const MobileDashboard = ({ user, organization, onLogout, onChangeOrganization })
           </svg>
           <span>Статистика</span>
         </button>
-        {mappingStatistics.length > 0 && (
+        {phoneMappings.length > 0 && (
           <button
             className={activeTab === 'mappings' ? 'active' : ''}
             onClick={() => setActiveTab('mappings')}

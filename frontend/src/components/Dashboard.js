@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import GridLayout from 'react-grid-layout';
@@ -21,7 +21,7 @@ const Dashboard = ({ user, organization, onLogout, onChangeOrganization }) => {
   });
   const [mappingStatistics, setMappingStatistics] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [timeRange, setTimeRange] = useState('24h');
+  const [timeRange, setTimeRange] = useState('30d');
   const [refreshInterval, setRefreshInterval] = useState(5); // в секундах
   const [callType, setCallType] = useState('all'); // all, inbound, outbound
   const [startDate, setStartDate] = useState('');
@@ -30,6 +30,12 @@ const Dashboard = ({ user, organization, onLogout, onChangeOrganization }) => {
   const [containerWidth, setContainerWidth] = useState(window.innerWidth - 32);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
+
+  // Server-side pagination state
+  const [callsPage, setCallsPage] = useState(1);
+  const [callsPerPage, setCallsPerPage] = useState(15);
+  const [callsTotalCount, setCallsTotalCount] = useState(0);
+  const [callsSearchQuery, setCallsSearchQuery] = useState('');
 
   // Layout state для react-grid-layout
   const defaultLayout = [
@@ -50,18 +56,25 @@ const Dashboard = ({ user, organization, onLogout, onChangeOrganization }) => {
 
   // Загрузка layout при монтировании компонента или смене организации
   useEffect(() => {
-    setLayoutLoaded(false); // Сбрасываем флаг перед загрузкой нового layout
+    setLayoutLoaded(false);
     loadLayout();
-    console.log('Current user:', user);
-    console.log('User organizations:', user?.organizations);
   }, [organization]);
 
   useEffect(() => {
     fetchData();
-    // Обновление данных с выбранным интервалом
     const interval = setInterval(fetchData, refreshInterval * 1000);
     return () => clearInterval(interval);
   }, [organization, timeRange, refreshInterval, callType, startDate, endDate, useCustomDates]);
+
+  // Fetch only calls when page/perPage/search changes
+  useEffect(() => {
+    fetchCalls();
+  }, [callsPage, callsPerPage, callsSearchQuery]);
+
+  // Reset page to 1 when filters change
+  useEffect(() => {
+    setCallsPage(1);
+  }, [timeRange, callType, startDate, endDate, useCustomDates, callsSearchQuery]);
 
   // Отслеживание изменения размера окна
   useEffect(() => {
@@ -80,57 +93,41 @@ const Dashboard = ({ user, organization, onLogout, onChangeOrganization }) => {
   // Загрузка layout из API
   const loadLayout = async () => {
     try {
-      console.log('Loading layout for org:', organization.orgId);
       const response = await axios.get(`${API_URL}/api/dashboard-layout/${organization.orgId}`);
-      console.log('Layout response:', response.data);
 
       if (response.data.layout_data) {
-        // Если layout_data содержит items, используем их, иначе считаем что это сам массив
         const layoutItems = response.data.layout_data.items || response.data.layout_data;
         if (Array.isArray(layoutItems)) {
-          console.log('Setting layout from API:', layoutItems);
           setLayout(layoutItems);
         } else {
-          console.log('Layout items not array, using default');
           setLayout(defaultLayout);
         }
 
-        // Загружаем ширину колонок если она есть
         if (response.data.layout_data.columnWidths) {
-          console.log('Setting column widths from API:', response.data.layout_data.columnWidths);
           setColumnWidths(response.data.layout_data.columnWidths);
         } else {
-          console.log('No column widths in layout, using empty');
           setColumnWidths({});
         }
       } else {
-        // Если layout не найден, используем дефолтный
-        console.log('No layout_data, using default');
         setLayout(defaultLayout);
         setColumnWidths({});
       }
     } catch (error) {
       console.error('Ошибка загрузки layout:', error);
-      console.log('Error loading layout, using default');
       setLayout(defaultLayout);
       setColumnWidths({});
     } finally {
-      // Устанавливаем флаг после загрузки (независимо от успеха/ошибки)
       setLayoutLoaded(true);
     }
   };
 
-  // Обработчик изменения layout - сохранение в API
+  // Обработчик изменения layout
   const onLayoutChange = async (newLayout) => {
     setLayout(newLayout);
 
-    // Только для админов сохраняем layout
-    // И только после того, как layout был загружен (чтобы не перезаписать при монтировании)
     if (!isAdmin || !layoutLoaded) return;
 
-    // Сохранение в API (debounced - только после завершения изменений)
     try {
-      console.log('Saving layout to API:', newLayout);
       await axios.post(`${API_URL}/api/dashboard-layout`, {
         org_id: parseInt(organization.orgId),
         layout_data: {
@@ -138,26 +135,21 @@ const Dashboard = ({ user, organization, onLogout, onChangeOrganization }) => {
           columnWidths: columnWidths
         }
       });
-      console.log('Layout saved successfully');
     } catch (error) {
       console.error('Ошибка сохранения layout:', error);
     }
   };
 
-  // Обработчик изменения ширины колонок - сохранение в API (с debounce)
-  const saveLayoutWithColumnWidthsRef = React.useRef(null);
+  // Обработчик изменения ширины колонок
+  const saveLayoutWithColumnWidthsRef = useRef(null);
 
-  const saveLayoutWithColumnWidths = React.useCallback((newColumnWidths) => {
-    // Только для админов сохраняем column widths
-    // И только после того, как layout был загружен
+  const saveLayoutWithColumnWidths = useCallback((newColumnWidths) => {
     if (!isAdmin || !layoutLoaded) return;
 
-    // Очищаем предыдущий таймер
     if (saveLayoutWithColumnWidthsRef.current) {
       clearTimeout(saveLayoutWithColumnWidthsRef.current);
     }
 
-    // Устанавливаем новый таймер (debounce 500ms)
     saveLayoutWithColumnWidthsRef.current = setTimeout(async () => {
       try {
         await axios.post(`${API_URL}/api/dashboard-layout`, {
@@ -173,12 +165,11 @@ const Dashboard = ({ user, organization, onLogout, onChangeOrganization }) => {
     }, 500);
   }, [isAdmin, layoutLoaded, layout, organization.orgId, API_URL]);
 
-  // Сброс layout к значениям по умолчанию
+  // Сброс layout
   const resetLayout = async () => {
     setLayout(defaultLayout);
     setColumnWidths({});
 
-    // Удаляем layout из базы данных
     try {
       await axios.delete(`${API_URL}/api/dashboard-layout/${organization.orgId}`);
     } catch (error) {
@@ -186,62 +177,79 @@ const Dashboard = ({ user, organization, onLogout, onChangeOrganization }) => {
     }
   };
 
-  // Применить текущий layout ко всем организациям пользователя
+  // Применить layout ко всем организациям
   const applyLayoutToAll = async () => {
     if (!window.confirm('Применить текущее расположение панелей и размеры колонок ко всем вашим организациям?')) {
       return;
     }
 
     try {
-      // Получаем все организации пользователя
       const userOrgs = user?.organizations || [];
-      console.log('Applying layout to organizations:', userOrgs);
-      console.log('Current layout:', layout);
-      console.log('Current column widths:', columnWidths);
-
-      // Сохраняем текущий layout и columnWidths для каждой организации
       let successCount = 0;
       for (const org of userOrgs) {
-        console.log(`Saving layout for org ${org.orgId}...`);
         try {
-          const response = await axios.post(`${API_URL}/api/dashboard-layout`, {
+          await axios.post(`${API_URL}/api/dashboard-layout`, {
             org_id: parseInt(org.orgId),
             layout_data: {
               items: layout,
               columnWidths: columnWidths
             }
           });
-          console.log(`✓ Saved for org ${org.orgId}:`, response.data);
           successCount++;
         } catch (err) {
-          console.error(`✗ Failed for org ${org.orgId}:`, err);
+          console.error(`Failed for org ${org.orgId}:`, err);
         }
       }
 
-      alert(`Layout и размеры колонок применены к ${successCount} из ${userOrgs.length} организаций`);
+      alert(`Layout применен к ${successCount} из ${userOrgs.length} организаций`);
     } catch (error) {
-      console.error('Ошибка применения layout ко всем организациям:', error);
+      console.error('Ошибка применения layout:', error);
       alert('Ошибка при применении layout');
+    }
+  };
+
+  // Build calls params
+  const buildCallsParams = (page, perPage, search) => {
+    const params = {
+      orgId: organization.orgId,
+      skip: (page - 1) * perPage,
+      limit: perPage,
+      timeRange: timeRange
+    };
+    if (callType !== 'all') {
+      params.direction = callType;
+    }
+    if (useCustomDates) {
+      if (startDate) params.startDate = startDate;
+      if (endDate) params.endDate = endDate;
+      delete params.timeRange;
+    }
+    if (search) {
+      params.search = search;
+    }
+    return params;
+  };
+
+  // Fetch only calls (for pagination/search changes)
+  const fetchCalls = async () => {
+    try {
+      const callsParams = buildCallsParams(callsPage, callsPerPage, callsSearchQuery);
+      const callsResponse = await axios.get(`${API_URL}/api/calls`, { params: callsParams });
+      setCalls(callsResponse.data.calls || []);
+      setCallsTotalCount(callsResponse.data.total || 0);
+    } catch (error) {
+      console.error('Error fetching calls:', error);
     }
   };
 
   const fetchData = async () => {
     setLoading(true);
     try {
-      // Загружаем все звонки
-      const callsParams = { orgId: organization.orgId, limit: 100, timeRange: timeRange };
-      if (callType !== 'all') {
-        callsParams.direction = callType;
-      }
-      if (useCustomDates) {
-        if (startDate) callsParams.startDate = startDate;
-        if (endDate) callsParams.endDate = endDate;
-        delete callsParams.timeRange; // Приоритет у произвольных дат
-      }
-      const callsResponse = await axios.get(`${API_URL}/api/calls`, {
-        params: callsParams
-      });
-      setCalls(callsResponse.data);
+      // Загружаем звонки с серверной пагинацией
+      const callsParams = buildCallsParams(callsPage, callsPerPage, callsSearchQuery);
+      const callsResponse = await axios.get(`${API_URL}/api/calls`, { params: callsParams });
+      setCalls(callsResponse.data.calls || []);
+      setCallsTotalCount(callsResponse.data.total || 0);
 
       // Загружаем необработанные звонки
       const unprocessedParams = { orgId: organization.orgId, limit: 100, timeRange: timeRange };
@@ -266,9 +274,6 @@ const Dashboard = ({ user, organization, onLogout, onChangeOrganization }) => {
         params: statsParams
       });
 
-      console.log('Desktop Dashboard Statistics Response:', statsResponse.data);
-      console.log('Desktop Dashboard - StatsParams:', statsParams);
-
       setStatistics({
         accepted: statsResponse.data.answered_calls,
         missed: statsResponse.data.missed_calls,
@@ -276,14 +281,13 @@ const Dashboard = ({ user, organization, onLogout, onChangeOrganization }) => {
         notRedialed: statsResponse.data.not_redialed
       });
 
-      // Загружаем статистику по маппингам если они есть
+      // Загружаем статистику по маппингам
       if (organization.phone_mappings && organization.phone_mappings.length > 0) {
         try {
           const mappingStatsResponse = await axios.get(`${API_URL}/api/statistics/by-mapping`, {
             params: statsParams
           });
           setMappingStatistics(mappingStatsResponse.data);
-          console.log('Desktop Dashboard Mapping Statistics:', mappingStatsResponse.data);
         } catch (error) {
           console.error('Error loading mapping statistics:', error);
           setMappingStatistics([]);
@@ -292,7 +296,7 @@ const Dashboard = ({ user, organization, onLogout, onChangeOrganization }) => {
         setMappingStatistics([]);
       }
 
-      // Загружаем активные звонки (без временного фильтра - всегда текущие)
+      // Загружаем активные звонки
       const activeResponse = await axios.get(`${API_URL}/api/calls-active`, {
         params: { orgId: organization.orgId }
       });
@@ -539,9 +543,9 @@ const Dashboard = ({ user, organization, onLogout, onChangeOrganization }) => {
         {/* Calls List */}
         <div key="calls-list" className="section">
           <div className="section-header">
-            <h3>Список звонков</h3>
+            <h3>Список звонков ({callsTotalCount})</h3>
           </div>
-          <div className="section-content">
+          <div className="section-content calls-section-content">
             <CallsTable
               calls={calls}
               type="all"
@@ -552,12 +556,18 @@ const Dashboard = ({ user, organization, onLogout, onChangeOrganization }) => {
               columnWidths={columnWidths}
               setColumnWidths={setColumnWidths}
               onColumnWidthsChange={saveLayoutWithColumnWidths}
+              totalItems={callsTotalCount}
+              currentPage={callsPage}
+              itemsPerPage={callsPerPage}
+              onPageChange={setCallsPage}
+              onItemsPerPageChange={(val) => { setCallsPerPage(val); setCallsPage(1); }}
+              onSearchChange={setCallsSearchQuery}
             />
           </div>
         </div>
       </GridLayout>
 
-      {/* Статистика по точкам - отдельная секция снизу */}
+      {/* Статистика по точкам */}
       {mappingStatistics.length > 0 && (
         <div className="mapping-stats-section-wrapper">
           <div className="section">

@@ -1,70 +1,64 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import './CallsTable.css';
 import ContextMenu from './ContextMenu';
 import EditCallModal from './EditCallModal';
 import AudioPlayer from './AudioPlayer';
 
-const CallsTable = ({ calls, type, orgId, organization, onCallUpdated, user, columnWidths: propsColumnWidths, setColumnWidths: propsSetColumnWidths, onColumnWidthsChange }) => {
-  const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 15;
+const CallsTable = ({
+  calls, type, orgId, organization, onCallUpdated, user,
+  columnWidths: propsColumnWidths, setColumnWidths: propsSetColumnWidths, onColumnWidthsChange,
+  // Server-side pagination props
+  totalItems, currentPage: serverPage, itemsPerPage: serverItemsPerPage,
+  onPageChange, onItemsPerPageChange, onSearchChange
+}) => {
   const [contextMenu, setContextMenu] = useState(null);
   const [selectedCall, setSelectedCall] = useState(null);
   const [columns, setColumns] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [resizingColumn, setResizingColumn] = useState(null);
+  const searchDebounceRef = useRef(null);
 
-  // Локальный state для columnWidths (если не передан через props)
+  // Server pagination mode
+  const isServerPagination = totalItems !== undefined && onPageChange;
+
+  // Local pagination state (fallback when no server pagination)
+  const [localPage, setLocalPage] = useState(1);
+  const localItemsPerPage = 15;
+
+  const currentPage = isServerPagination ? serverPage : localPage;
+  const itemsPerPage = isServerPagination ? serverItemsPerPage : localItemsPerPage;
+
+  // Column widths
   const [localColumnWidths, setLocalColumnWidths] = useState({});
-
-  // Используем props если передан, иначе локальный state
   const columnWidths = propsColumnWidths || localColumnWidths;
   const setColumnWidths = propsSetColumnWidths || setLocalColumnWidths;
 
-  // Проверка, является ли пользователь администратором
   const isAdmin = user?.organizations?.some(org => org.role === 'admin') || false;
-
-  // Получаем phone_mappings из organization
   const phoneMappings = organization?.phone_mappings || [];
 
-  // Функция получения названия из маппинга по номеру телефона
   const getPhoneMappingName = (phone) => {
     if (!phone || phoneMappings.length === 0) return null;
-
-    // Нормализуем номер для поиска (убираем все нецифровые символы)
     const normalizedPhone = String(phone).replace(/\D/g, '');
-
-    // Ищем маппинг
     const mapping = phoneMappings.find(m => {
       const mappingPhone = String(m.phone_number).replace(/\D/g, '');
       return normalizedPhone.includes(mappingPhone) || mappingPhone.includes(normalizedPhone);
     });
-
     return mapping ? mapping.display_name : null;
   };
 
-  // Проверяем, есть ли хотя бы один звонок с маппингом для callto1 и callto2
   const hasCallto1Mapping = calls.some(call => call.callto1 && getPhoneMappingName(call.callto1));
   const hasCallto2Mapping = calls.some(call => call.callto2 && getPhoneMappingName(call.callto2));
 
-  // Функция форматирования номера телефона: 9633707007 → +79633707007
   const formatPhoneNumber = (phone) => {
     if (!phone) return '';
-    const phoneStr = String(phone).replace(/\D/g, ''); // Убираем все нечисловые символы
-    if (phoneStr.length === 10) {
-      // Если номер из 10 цифр (без 7), добавляем +7
-      return `+7${phoneStr}`;
-    } else if (phoneStr.length === 11 && phoneStr.startsWith('7')) {
-      // Если номер из 11 цифр и начинается с 7, добавляем +
-      return `+${phoneStr}`;
-    } else if (phoneStr.length === 11 && phoneStr.startsWith('8')) {
-      // Если номер из 11 цифр и начинается с 8, заменяем 8 на +7
-      return `+7${phoneStr.slice(1)}`;
-    }
-    return phone; // Если формат не подходит, возвращаем как есть
+    const phoneStr = String(phone).replace(/\D/g, '');
+    if (phoneStr.length === 10) return `+7${phoneStr}`;
+    if (phoneStr.length === 11 && phoneStr.startsWith('7')) return `+${phoneStr}`;
+    if (phoneStr.length === 11 && phoneStr.startsWith('8')) return `+7${phoneStr.slice(1)}`;
+    return phone;
   };
 
-  // Функция форматирования даты: 2025-11-19T01:14:28 → 19.11.2025 01:14
   const formatDateTime = (dateTimeStr) => {
     if (!dateTimeStr) return '';
     try {
@@ -76,11 +70,23 @@ const CallsTable = ({ calls, type, orgId, organization, onCallUpdated, user, col
       const minutes = String(date.getMinutes()).padStart(2, '0');
       return `${day}.${month}.${year} ${hours}:${minutes}`;
     } catch (e) {
-      return dateTimeStr; // Если не удалось распарсить, возвращаем как есть
+      return dateTimeStr;
     }
   };
 
-  // Загрузка конфигурации колонок для организации
+  const formatDuration = (seconds) => {
+    if (!seconds || seconds === 0) return '-';
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    if (mins >= 60) {
+      const hrs = Math.floor(mins / 60);
+      const remainMins = mins % 60;
+      return `${hrs}:${String(remainMins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+    }
+    return `${mins}:${String(secs).padStart(2, '0')}`;
+  };
+
+  // Load columns config
   useEffect(() => {
     if (orgId && type === 'all') {
       fetch(`/api/organizations/${orgId}/columns`)
@@ -90,66 +96,55 @@ const CallsTable = ({ calls, type, orgId, organization, onCallUpdated, user, col
     }
   }, [orgId, type]);
 
-  // Сброс на первую страницу при изменении поискового запроса
-  useEffect(() => {
-    if (type === 'all' && searchQuery) {
-      setCurrentPage(1);
-    }
-  }, [searchQuery, type]);
+  // Debounced search for server-side
+  const handleSearchChange = useCallback((value) => {
+    setSearchQuery(value);
 
-  // Обработчики для изменения размера колонок
+    if (isServerPagination && onSearchChange) {
+      if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
+      searchDebounceRef.current = setTimeout(() => {
+        onSearchChange(value);
+      }, 400);
+    }
+  }, [isServerPagination, onSearchChange]);
+
+  // Reset local page on search
+  useEffect(() => {
+    if (!isServerPagination) setLocalPage(1);
+  }, [searchQuery, isServerPagination]);
+
+  // Column resize handlers
   const handleMouseDown = (columnKey, e) => {
     e.preventDefault();
     const currentWidth = columnWidths[columnKey] || e.target.parentElement.offsetWidth;
-    // Устанавливаем минимальную ширину для колонки audio
     const minWidth = columnKey === 'audio' ? 300 : 50;
-    setResizingColumn({
-      key: columnKey,
-      startX: e.clientX,
-      startWidth: Math.max(minWidth, currentWidth)
-    });
+    setResizingColumn({ key: columnKey, startX: e.clientX, startWidth: Math.max(minWidth, currentWidth) });
   };
 
   useEffect(() => {
     if (!resizingColumn) return;
-
     const handleMouseMove = (e) => {
       const diff = e.clientX - resizingColumn.startX;
-      // Устанавливаем минимальную ширину для каждой колонки
       const minWidth = resizingColumn.key === 'audio' ? 300 : 50;
       const newWidth = Math.max(minWidth, resizingColumn.startWidth + diff);
-      setColumnWidths(prev => ({
-        ...prev,
-        [resizingColumn.key]: newWidth
-      }));
+      setColumnWidths(prev => ({ ...prev, [resizingColumn.key]: newWidth }));
     };
-
     const handleMouseUp = () => {
       setResizingColumn(null);
-      // Сохраняем новые размеры колонок после завершения изменения размера
       if (onColumnWidthsChange) {
-        setColumnWidths(prev => {
-          onColumnWidthsChange(prev);
-          return prev;
-        });
+        setColumnWidths(prev => { onColumnWidthsChange(prev); return prev; });
       }
     };
-
     document.addEventListener('mousemove', handleMouseMove);
     document.addEventListener('mouseup', handleMouseUp);
-
     return () => {
       document.removeEventListener('mousemove', handleMouseMove);
       document.removeEventListener('mouseup', handleMouseUp);
     };
   }, [resizingColumn, onColumnWidthsChange]);
 
-  // Функция для скачивания записи
   const handleDownload = (recording) => {
-    if (!recording) {
-      alert('Запись недоступна');
-      return;
-    }
+    if (!recording) return;
     const url = `https://itatc.ru/app/download-url/${recording}`;
     const link = document.createElement('a');
     link.href = url;
@@ -161,52 +156,39 @@ const CallsTable = ({ calls, type, orgId, organization, onCallUpdated, user, col
 
   const getStatusLabel = (status) => {
     switch (status) {
-      case 'answered':
-        return 'Отвечен';
-      case 'not_answered':
-        return 'Не отвечен';
-      case 'busy':
-        return 'Занято';
-      default:
-        return status;
+      case 'answered': return 'Отвечен';
+      case 'not_answered': return 'Не отвечен';
+      case 'busy': return 'Занято';
+      default: return status;
     }
   };
 
   const getTypeLabel = (callType) => {
     switch (callType) {
-      case 'incoming':
-        return 'Входящий';
-      case 'outgoing':
-        return 'Исходящий';
-      default:
-        return callType;
+      case 'incoming': return 'Входящий';
+      case 'outgoing': return 'Исходящий';
+      default: return callType;
     }
   };
 
   const getStatusClass = (status) => {
     switch (status) {
-      case 'answered':
-        return 'status-answered';
-      case 'not_answered':
-        return 'status-not-answered';
-      case 'busy':
-        return 'status-busy';
-      default:
-        return '';
+      case 'answered': return 'status-answered';
+      case 'not_answered': return 'status-not-answered';
+      case 'busy': return 'status-busy';
+      default: return '';
     }
   };
 
   const getTypeClass = (callType) => {
     switch (callType) {
-      case 'incoming':
-        return 'type-incoming';
-      case 'outgoing':
-        return 'type-outgoing';
-      default:
-        return '';
+      case 'incoming': return 'type-incoming';
+      case 'outgoing': return 'type-outgoing';
+      default: return '';
     }
   };
 
+  // Unprocessed calls view
   if (type === 'unprocessed') {
     return (
       <div className="calls-table unprocessed-scroll">
@@ -214,7 +196,7 @@ const CallsTable = ({ calls, type, orgId, organization, onCallUpdated, user, col
           <thead>
             <tr>
               <th>Номер</th>
-              <th>Дата ↑</th>
+              <th>Дата</th>
             </tr>
           </thead>
           <tbody>
@@ -230,6 +212,7 @@ const CallsTable = ({ calls, type, orgId, organization, onCallUpdated, user, col
     );
   }
 
+  // Active calls view
   if (type === 'active') {
     return (
       <div className="calls-table">
@@ -259,191 +242,139 @@ const CallsTable = ({ calls, type, orgId, organization, onCallUpdated, user, col
     );
   }
 
-  // Функция для рендеринга содержимого ячейки на основе типа колонки
+  // Custom column rendering
   const renderCellContent = (column, call) => {
     const value = call[column.sourceField];
-
     switch (column.type) {
       case 'button':
         if (column.key === 'download') {
           return (
-            <button
-              className="icon-btn"
-              title="Скачать"
-              onClick={() => handleDownload(call.recording)}
-              disabled={!call.recording}
-            >
+            <button className="icon-btn" title="Скачать" onClick={() => handleDownload(call.recording)} disabled={!call.recording}>
               🎙
             </button>
           );
         }
         return null;
-
       case 'audio':
         return call.recording ? (
-          <AudioPlayer
-            src={`https://itatc.ru/app/download-url/${call.recording}`}
-            onDownload={() => handleDownload(call.recording)}
-            phoneNumber={call.number}
-            callDateTime={call.datetime}
-            callType={call.type}
-          />
+          <AudioPlayer src={`https://itatc.ru/app/download-url/${call.recording}`} onDownload={() => handleDownload(call.recording)} phoneNumber={call.number} callDateTime={call.datetime} callType={call.type} />
         ) : (
           <span className="no-recording">Нет записи</span>
         );
-
       case 'status':
-        return (
-          <span className={`status-badge ${getStatusClass(value)}`}>
-            {getStatusLabel(value)}
-          </span>
-        );
-
+        return <span className={`status-badge ${getStatusClass(value)}`}>{getStatusLabel(value)}</span>;
       case 'badge':
-        if (column.key === 'type') {
-          return (
-            <span className={`type-badge ${getTypeClass(value)}`}>
-              {getTypeLabel(value)}
-            </span>
-          );
-        }
+        if (column.key === 'type') return <span className={`type-badge ${getTypeClass(value)}`}>{getTypeLabel(value)}</span>;
         return value;
-
       case 'date':
         return formatDateTime(value);
-
       case 'text':
         if (column.sourceField === 'number' || column.sourceField === 'reserveMobile') {
           const mappingName = getPhoneMappingName(value);
-          return (
-            <span className="number-cell">
-              {formatPhoneNumber(value)}
-              {mappingName && <span className="mapping-name"> ({mappingName})</span>}
-            </span>
-          );
+          return <span className="number-cell">{formatPhoneNumber(value)}{mappingName && <span className="mapping-name"> ({mappingName})</span>}</span>;
         }
-        if (column.sourceField === 'not_redialed') {
-          return value ? 'Не перезвонили' : '';
-        }
-        // Для колонки "Фундук" (callto1) показываем значение или "-" если пусто
+        if (column.sourceField === 'not_redialed') return value ? 'Не перезвонили' : '';
         if (column.sourceField === 'callto1' || column.sourceField === 'callto2') {
           const mappingName = getPhoneMappingName(value);
           if (mappingName) return mappingName;
           return value || '-';
         }
         return value || '';
-
       default:
         return value || '';
     }
   };
 
-  // type === 'all' - с пагинацией и поиском
-  // Фильтрация по номеру телефона
-  const filteredCalls = calls.filter(call => {
-    if (!searchQuery) return true;
-    const query = searchQuery.replace(/\D/g, ''); // Убираем все нецифровые символы из запроса
-    const phoneNumber = String(call.number).replace(/\D/g, '');
-    return phoneNumber.includes(query);
-  });
+  // === type === 'all' - Full calls list ===
 
-  const totalPages = Math.ceil(filteredCalls.length / itemsPerPage);
-  const indexOfLastItem = currentPage * itemsPerPage;
-  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-  const currentItems = filteredCalls.slice(indexOfFirstItem, indexOfLastItem);
+  // Data for display: server pagination sends pre-paginated data, local needs filtering/slicing
+  let displayCalls, totalRecords, totalPages;
 
-  const paginate = (pageNumber) => setCurrentPage(pageNumber);
+  if (isServerPagination) {
+    displayCalls = calls;
+    totalRecords = totalItems;
+    totalPages = Math.ceil(totalItems / itemsPerPage);
+  } else {
+    // Local filtering
+    const filteredCalls = calls.filter(call => {
+      if (!searchQuery) return true;
+      const query = searchQuery.replace(/\D/g, '');
+      const phoneNumber = String(call.number).replace(/\D/g, '');
+      return phoneNumber.includes(query);
+    });
+    totalRecords = filteredCalls.length;
+    totalPages = Math.ceil(filteredCalls.length / itemsPerPage);
+    const start = (localPage - 1) * itemsPerPage;
+    displayCalls = filteredCalls.slice(start, start + itemsPerPage);
+  }
 
-  // Обработчик правого клика
+  const handlePageChange = (page) => {
+    if (isServerPagination) {
+      onPageChange(page);
+    } else {
+      setLocalPage(page);
+    }
+  };
+
+  // Smart pagination: generates page numbers with ellipsis
+  const getPageNumbers = () => {
+    if (totalPages <= 7) return Array.from({ length: totalPages }, (_, i) => i + 1);
+    const pages = [];
+    pages.push(1);
+    if (currentPage > 3) pages.push('...');
+    for (let i = Math.max(2, currentPage - 1); i <= Math.min(totalPages - 1, currentPage + 1); i++) {
+      pages.push(i);
+    }
+    if (currentPage < totalPages - 2) pages.push('...');
+    pages.push(totalPages);
+    return pages;
+  };
+
+  // Record range text
+  const startRecord = totalRecords === 0 ? 0 : (currentPage - 1) * itemsPerPage + 1;
+  const endRecord = Math.min(currentPage * itemsPerPage, totalRecords);
+
+  // Context menu
   const handleContextMenu = (e, call) => {
     e.preventDefault();
     setSelectedCall(call);
-    setContextMenu({
-      x: e.clientX,
-      y: e.clientY,
-    });
+    setContextMenu({ x: e.clientX, y: e.clientY });
   };
 
-  // Опции контекстного меню
   const getContextMenuOptions = () => {
     if (!selectedCall) return [];
-
     const options = [
       {
-        label: 'View',
-        icon: '👁',
-        shortcut: '⌘ v',
-        onClick: () => {
-          console.log('View call:', selectedCall);
-          alert(`Просмотр звонка: ${formatPhoneNumber(selectedCall.number)}`);
-        },
+        label: 'View', icon: '👁', shortcut: '⌘ v',
+        onClick: () => { alert(`Просмотр звонка: ${formatPhoneNumber(selectedCall.number)}`); },
       },
     ];
-
-    // Добавляем опцию редактирования только для администраторов
     if (isAdmin) {
       options.push({
-        label: 'Edit',
-        icon: '✏️',
-        shortcut: '⌘ e',
-        onClick: () => {
-          setContextMenu(null);
-          setEditModalOpen(true);
-        },
+        label: 'Edit', icon: '✏️', shortcut: '⌘ e',
+        onClick: () => { setContextMenu(null); setEditModalOpen(true); },
       });
     }
-
     options.push(
       {
-        label: 'Share',
-        icon: '📤',
-        shortcut: '⌘ s',
+        label: 'Share', icon: '📤', shortcut: '⌘ s',
         onClick: () => {
-          console.log('Share call:', selectedCall);
-          // Копируем ссылку в буфер обмена
           navigator.clipboard.writeText(`Call ID: ${selectedCall.id}, Number: ${formatPhoneNumber(selectedCall.number)}`);
           alert('Информация скопирована в буфер обмена');
         },
       },
       { separator: true },
       {
-        label: 'Explore',
-        icon: '🔍',
-        shortcut: '⌘ x',
-        onClick: () => {
-          console.log('Explore call:', selectedCall);
-          alert(`Исследование звонка: ${formatPhoneNumber(selectedCall.number)}`);
-        },
-      },
-      {
-        label: 'Inspect',
-        icon: '🔧',
-        shortcut: '⌘ i',
-        onClick: () => {
-          console.log('Inspect call:', selectedCall);
-          console.table(selectedCall);
-        },
-      },
-      { separator: true },
-      {
-        label: 'Remove',
-        icon: '🗑',
-        shortcut: '⌘ r',
-        danger: true,
-        onClick: () => {
-          if (window.confirm(`Удалить звонок ${formatPhoneNumber(selectedCall.number)}?`)) {
-            console.log('Remove call:', selectedCall);
-            alert('Функция удаления будет реализована');
-          }
-        },
+        label: 'Inspect', icon: '🔧', shortcut: '⌘ i',
+        onClick: () => { console.table(selectedCall); },
       },
     );
-
     return options;
   };
 
   return (
     <div className="calls-table-container">
+      {/* Search bar - sticky top */}
       {type === 'all' && (
         <div className="search-container">
           <input
@@ -451,58 +382,41 @@ const CallsTable = ({ calls, type, orgId, organization, onCallUpdated, user, col
             className="search-input"
             placeholder="Поиск по номеру телефона..."
             value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
+            onChange={(e) => handleSearchChange(e.target.value)}
           />
           {searchQuery && (
-            <button
-              className="clear-search-btn"
-              onClick={() => setSearchQuery('')}
-              title="Очистить поиск"
-            >
+            <button className="clear-search-btn" onClick={() => handleSearchChange('')} title="Очистить поиск">
               ✕
             </button>
           )}
-          {searchQuery && (
+          {searchQuery && !isServerPagination && (
             <span className="search-results-count">
-              Найдено: {filteredCalls.length} из {calls.length}
+              Найдено: {totalRecords} из {calls.length}
             </span>
           )}
         </div>
       )}
-      <div className="calls-table">
+
+      {/* Scrollable table area */}
+      <div className={`calls-table ${resizingColumn ? 'resizing' : ''}`}>
         <table>
           <thead>
             <tr>
               {columns.length > 0 ? (
                 columns.map((column) => {
-                  // Применяем минимальную ширину для колонки audio
                   const minWidth = column.key === 'audio' || column.type === 'audio' ? 300 : 50;
                   const savedWidth = columnWidths[column.key];
                   const width = savedWidth ? Math.max(minWidth, savedWidth) : 'auto';
-
                   return (
-                    <th
-                      key={column.key}
-                      style={{
-                        width: width,
-                        position: 'relative'
-                      }}
-                    >
+                    <th key={column.key} style={{ width, position: 'relative' }}>
                       {column.label}
-                      <div
-                        className="column-resizer"
-                        onMouseDown={(e) => handleMouseDown(column.key, e)}
-                      />
+                      <div className="column-resizer" onMouseDown={(e) => handleMouseDown(column.key, e)} />
                     </th>
                   );
                 })
               ) : (
-                // Fallback to hardcoded columns if dynamic config not loaded
                 <>
-                  <th style={{
-                    width: columnWidths['audio'] ? Math.max(300, columnWidths['audio']) : 'auto',
-                    position: 'relative'
-                  }}>
+                  <th style={{ width: columnWidths['audio'] ? Math.max(300, columnWidths['audio']) : 'auto', position: 'relative' }}>
                     Прослушать
                     <div className="column-resizer" onMouseDown={(e) => handleMouseDown('audio', e)} />
                   </th>
@@ -531,8 +445,12 @@ const CallsTable = ({ calls, type, orgId, organization, onCallUpdated, user, col
                     <div className="column-resizer" onMouseDown={(e) => handleMouseDown('type', e)} />
                   </th>
                   <th style={{ width: columnWidths['datetime'] || 'auto', position: 'relative' }}>
-                    Время звонка ↓
+                    Время звонка
                     <div className="column-resizer" onMouseDown={(e) => handleMouseDown('datetime', e)} />
+                  </th>
+                  <th style={{ width: columnWidths['duration'] || 'auto', position: 'relative' }}>
+                    Длительность
+                    <div className="column-resizer" onMouseDown={(e) => handleMouseDown('duration', e)} />
                   </th>
                   <th style={{ width: columnWidths['not_redialed'] || 'auto', position: 'relative' }}>
                     Не перезвонили
@@ -543,49 +461,25 @@ const CallsTable = ({ calls, type, orgId, organization, onCallUpdated, user, col
             </tr>
           </thead>
           <tbody>
-            {currentItems.map((call) => (
-              <tr
-                key={call.id}
-                onContextMenu={(e) => handleContextMenu(e, call)}
-                className="table-row"
-              >
+            {displayCalls.map((call) => (
+              <tr key={call.id} onContextMenu={(e) => handleContextMenu(e, call)} className="table-row">
                 {columns.length > 0 ? (
                   columns.map((column) => (
-                    <td
-                      key={column.key}
-                      className={column.type === 'audio' ? 'audio-cell' : ''}
-                      onMouseDown={(e) => {
-                        if (column.type === 'audio') {
-                          e.stopPropagation();
-                        }
-                      }}
-                    >
+                    <td key={column.key} className={column.type === 'audio' ? 'audio-cell' : ''} onMouseDown={(e) => { if (column.type === 'audio') e.stopPropagation(); }}>
                       {renderCellContent(column, call)}
                     </td>
                   ))
                 ) : (
-                  // Fallback to hardcoded columns
                   <>
-                    <td
-                      className="audio-cell"
-                      onMouseDown={(e) => e.stopPropagation()}
-                    >
+                    <td className="audio-cell" onMouseDown={(e) => e.stopPropagation()}>
                       {call.recording ? (
-                        <AudioPlayer
-                          src={`https://itatc.ru/app/download-url/${call.recording}`}
-                          onDownload={() => handleDownload(call.recording)}
-                          phoneNumber={call.number}
-                          callDateTime={call.datetime}
-                          callType={call.type}
-                        />
+                        <AudioPlayer src={`https://itatc.ru/app/download-url/${call.recording}`} onDownload={() => handleDownload(call.recording)} phoneNumber={call.number} callDateTime={call.datetime} callType={call.type} />
                       ) : (
                         <span className="no-recording">Нет записи</span>
                       )}
                     </td>
                     <td>
-                      <span className={`status-badge ${getStatusClass(call.status)}`}>
-                        {getStatusLabel(call.status)}
-                      </span>
+                      <span className={`status-badge ${getStatusClass(call.status)}`}>{getStatusLabel(call.status)}</span>
                     </td>
                     <td className="number-cell">
                       {formatPhoneNumber(call.number)}
@@ -594,89 +488,131 @@ const CallsTable = ({ calls, type, orgId, organization, onCallUpdated, user, col
                       )}
                     </td>
                     {hasCallto1Mapping && (
-                      <td>
-                        {getPhoneMappingName(call.callto1) || '-'}
-                      </td>
+                      <td>{getPhoneMappingName(call.callto1) || '-'}</td>
                     )}
                     {hasCallto2Mapping && (
-                      <td>
-                        {getPhoneMappingName(call.callto2) || '-'}
-                      </td>
+                      <td>{getPhoneMappingName(call.callto2) || '-'}</td>
                     )}
                     <td>
-                      <span className={`type-badge ${getTypeClass(call.type)}`}>
-                        {getTypeLabel(call.type)}
-                      </span>
+                      <span className={`type-badge ${getTypeClass(call.type)}`}>{getTypeLabel(call.type)}</span>
                     </td>
                     <td>{formatDateTime(call.datetime)}</td>
+                    <td className="duration-cell">{formatDuration(call.duration)}</td>
                     <td>{call.not_redialed ? 'Не перезвонили' : ''}</td>
                   </>
                 )}
               </tr>
             ))}
-        </tbody>
-      </table>
-    </div>
+          </tbody>
+        </table>
 
-    {/* Пагинация */}
-    {totalPages > 1 && (
-      <div className="pagination">
-        <button
-          className="pagination-btn"
-          onClick={() => paginate(currentPage - 1)}
-          disabled={currentPage === 1}
-        >
-          ←
-        </button>
-
-        {[...Array(totalPages)].map((_, index) => (
-          <button
-            key={index + 1}
-            className={`pagination-btn ${currentPage === index + 1 ? 'active' : ''}`}
-            onClick={() => paginate(index + 1)}
-          >
-            {index + 1}
-          </button>
-        ))}
-
-        <button
-          className="pagination-btn"
-          onClick={() => paginate(currentPage + 1)}
-          disabled={currentPage === totalPages}
-        >
-          →
-        </button>
+        {/* Mobile card view */}
+        <div className="calls-cards">
+          {displayCalls.map((call) => (
+            <div key={call.id} className="call-card">
+              <div className="call-card-header">
+                <div className="call-card-number">{formatPhoneNumber(call.number)}</div>
+                <div className="call-card-badges">
+                  <span className={`status-badge ${getStatusClass(call.status)}`}>{getStatusLabel(call.status)}</span>
+                  <span className={`type-badge ${getTypeClass(call.type)}`}>{getTypeLabel(call.type)}</span>
+                </div>
+              </div>
+              <div className="call-card-body">
+                <span className="call-card-label">Время:</span>
+                <span className="call-card-value">{formatDateTime(call.datetime)}</span>
+                {call.duration > 0 && (
+                  <>
+                    <span className="call-card-label">Длительность:</span>
+                    <span className="call-card-value">{formatDuration(call.duration)}</span>
+                  </>
+                )}
+                {call.not_redialed && (
+                  <>
+                    <span className="call-card-label">Статус:</span>
+                    <span className="call-card-value" style={{ color: '#ff4d4f' }}>Не перезвонили</span>
+                  </>
+                )}
+              </div>
+              {call.recording && (
+                <div className="call-card-audio">
+                  <AudioPlayer src={`https://itatc.ru/app/download-url/${call.recording}`} onDownload={() => handleDownload(call.recording)} phoneNumber={call.number} callDateTime={call.datetime} callType={call.type} />
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
       </div>
-    )}
 
-    {contextMenu && (
-      <ContextMenu
-        x={contextMenu.x}
-        y={contextMenu.y}
-        onClose={() => setContextMenu(null)}
-        options={getContextMenuOptions()}
-      />
-    )}
+      {/* Pagination footer - sticky bottom */}
+      {totalPages >= 1 && (
+        <div className="pagination-footer">
+          <div className="pagination-info">
+            <span className="pagination-range">
+              {totalRecords > 0 ? `${startRecord}-${endRecord} из ${totalRecords}` : 'Нет записей'}
+            </span>
+            {isServerPagination && onItemsPerPageChange && (
+              <select
+                className="per-page-select"
+                value={itemsPerPage}
+                onChange={(e) => onItemsPerPageChange(Number(e.target.value))}
+              >
+                <option value={15}>15 / стр.</option>
+                <option value={25}>25 / стр.</option>
+                <option value={50}>50 / стр.</option>
+                <option value={100}>100 / стр.</option>
+              </select>
+            )}
+          </div>
 
-    {editModalOpen && selectedCall && (
-      <EditCallModal
-        call={selectedCall}
-        orgId={orgId}
-        onClose={() => {
-          setEditModalOpen(false);
-          setSelectedCall(null);
-        }}
-        onSave={() => {
-          setEditModalOpen(false);
-          setSelectedCall(null);
-          // Вызываем callback для обновления списка звонков
-          if (onCallUpdated) {
-            onCallUpdated();
-          }
-        }}
-      />
-    )}
-  </div>
+          {totalPages > 1 && (
+            <div className="pagination">
+              <button
+                className="pagination-btn"
+                onClick={() => handlePageChange(currentPage - 1)}
+                disabled={currentPage === 1}
+              >
+                ←
+              </button>
+
+              {getPageNumbers().map((page, idx) =>
+                page === '...' ? (
+                  <span key={`dots-${idx}`} className="pagination-dots">...</span>
+                ) : (
+                  <button
+                    key={page}
+                    className={`pagination-btn ${currentPage === page ? 'active' : ''}`}
+                    onClick={() => handlePageChange(page)}
+                  >
+                    {page}
+                  </button>
+                )
+              )}
+
+              <button
+                className="pagination-btn"
+                onClick={() => handlePageChange(currentPage + 1)}
+                disabled={currentPage === totalPages}
+              >
+                →
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+
+      {contextMenu && (
+        <ContextMenu x={contextMenu.x} y={contextMenu.y} onClose={() => setContextMenu(null)} options={getContextMenuOptions()} />
+      )}
+
+      {editModalOpen && selectedCall && (
+        <EditCallModal
+          call={selectedCall}
+          orgId={orgId}
+          onClose={() => { setEditModalOpen(false); setSelectedCall(null); }}
+          onSave={() => { setEditModalOpen(false); setSelectedCall(null); if (onCallUpdated) onCallUpdated(); }}
+        />
+      )}
+    </div>
   );
 };
 

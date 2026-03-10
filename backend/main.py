@@ -12,7 +12,7 @@ import httpx
 from datetime import datetime, timedelta
 from passlib.context import CryptContext
 
-from database import get_db, engine
+from database import get_db, engine, get_local_db
 import models
 import schemas
 
@@ -114,7 +114,7 @@ def health_check(db: Session = Depends(get_db)):
         raise HTTPException(status_code=500, detail=f"Database connection error: {str(e)}")
 
 @app.post("/api/auth/login")
-def login(credentials: dict, db: Session = Depends(get_db)):
+def login(credentials: dict, db: Session = Depends(get_db), local_db: Session = Depends(get_local_db)):
     """Аутентификация пользователя организации"""
     try:
         username = credentials.get("username")
@@ -123,8 +123,8 @@ def login(credentials: dict, db: Session = Depends(get_db)):
         if not username or not password:
             raise HTTPException(status_code=400, detail="Username and password are required")
 
-        # Ищем учетные данные организации
-        org_cred = db.query(models.OrgCredential).filter(
+        # Ищем учетные данные организации (в локальной БД)
+        org_cred = local_db.query(models.OrgCredential).filter(
             models.OrgCredential.username == username,
             models.OrgCredential.is_active == True
         ).first()
@@ -137,7 +137,7 @@ def login(credentials: dict, db: Session = Depends(get_db)):
             raise HTTPException(status_code=401, detail="Invalid credentials")
 
         # Проверяем, является ли пользователь суперадмином
-        is_superadmin = (username == "admin")
+        is_superadmin = (username == "itadmin")
 
         if is_superadmin:
             # Для суперадмина возвращаем все организации
@@ -145,8 +145,13 @@ def login(credentials: dict, db: Session = Depends(get_db)):
             organizations = []
 
             for org in all_orgs:
-                # Получаем маппинги телефонов для каждой организации
-                phone_mappings = db.query(models.PhoneMapping).filter(
+                # Получаем настройки организации из OrgCredential (локальная БД)
+                org_cred_info = local_db.query(models.OrgCredential).filter(
+                    models.OrgCredential.org_id == org.id
+                ).first()
+
+                # Получаем маппинги телефонов для каждой организации (локальная БД)
+                phone_mappings = local_db.query(models.PhoneMapping).filter(
                     models.PhoneMapping.org_id == org.id
                 ).all()
 
@@ -156,8 +161,8 @@ def login(credentials: dict, db: Session = Depends(get_db)):
                     "name": org.title,
                     "chatId": org.chatId,
                     "role": "admin",
-                    "logo_url": org.logo_url,
-                    "show_callto_columns": org.show_callto_columns or False,
+                    "logo_url": org_cred_info.logo_url if org_cred_info else None,
+                    "show_callto_columns": (org_cred_info.show_callto_columns or False) if org_cred_info else False,
                     "phone_mappings": [{
                         "id": pm.id,
                         "phone_number": pm.phone_number,
@@ -181,8 +186,8 @@ def login(credentials: dict, db: Session = Depends(get_db)):
             if not org:
                 raise HTTPException(status_code=404, detail="Organization not found")
 
-            # Получаем маппинги телефонов для организации
-            phone_mappings = db.query(models.PhoneMapping).filter(
+            # Получаем маппинги телефонов для организации (локальная БД)
+            phone_mappings = local_db.query(models.PhoneMapping).filter(
                 models.PhoneMapping.org_id == org.id
             ).all()
 
@@ -198,8 +203,8 @@ def login(credentials: dict, db: Session = Depends(get_db)):
                     "orgId": org.id,
                     "name": org.title,
                     "chatId": org.chatId,
-                    "logo_url": org.logo_url,
-                    "show_callto_columns": org.show_callto_columns or False,
+                    "logo_url": org_cred.logo_url,
+                    "show_callto_columns": org_cred.show_callto_columns or False,
                     "phone_mappings": [{
                         "id": pm.id,
                         "phone_number": pm.phone_number,
@@ -256,6 +261,7 @@ def get_calls(
     timeRange: str = None,
     startDate: str = None,
     endDate: str = None,
+    search: str = None,
     db: Session = Depends(get_db)
 ):
     """
@@ -328,6 +334,15 @@ def get_calls(
             if start_time:
                 query = query.filter(models.CDR.createdAt >= start_time)
 
+        # Поиск по номеру телефона
+        if search:
+            search_digits = ''.join(c for c in search if c.isdigit())
+            if search_digits:
+                query = query.filter(models.Customer.phone.ilike(f'%{search_digits}%'))
+
+        # Общее количество записей (до пагинации)
+        total_count = query.count()
+
         results = query.order_by(models.CDR.timeStart.desc()).offset(skip).limit(limit).all()
 
         calls = []
@@ -362,7 +377,7 @@ def get_calls(
                 "callto2": cdr.callto2
             })
 
-        return calls
+        return {"calls": calls, "total": total_count}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -549,7 +564,8 @@ def get_statistics_by_mapping(
     timeRange: str = None,
     startDate: str = None,
     endDate: str = None,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    local_db: Session = Depends(get_local_db)
 ):
     """
     Получение статистики по маппингам телефонов (точкам)
@@ -558,8 +574,8 @@ def get_statistics_by_mapping(
     try:
         from datetime import datetime, timedelta
 
-        # Получаем маппинги для организации
-        phone_mappings = db.query(models.PhoneMapping).filter(
+        # Получаем маппинги для организации (локальная БД)
+        phone_mappings = local_db.query(models.PhoneMapping).filter(
             models.PhoneMapping.org_id == orgId
         ).all()
 
@@ -834,21 +850,21 @@ def get_statistics_by_date(
 # ============================================
 
 @app.get("/api/admin/organizations")
-def admin_get_all_organizations(db: Session = Depends(get_db)):
+def admin_get_all_organizations(db: Session = Depends(get_db), local_db: Session = Depends(get_local_db)):
     """Получить все организации (только для администратора)"""
     try:
         orgs = db.query(models.Org).order_by(models.Org.id).all()
         result = []
         for org in orgs:
-            # Проверяем, есть ли credentials для организации
-            credential = db.query(models.OrgCredential).filter(models.OrgCredential.org_id == org.id).first()
+            # Проверяем, есть ли credentials для организации (локальная БД)
+            credential = local_db.query(models.OrgCredential).filter(models.OrgCredential.org_id == org.id).first()
             result.append({
                 "id": org.id,
                 "orgId": org.id,  # В таблице orgs id и есть orgId
                 "name": org.title,
                 "description": f"Telegram Chat ID: {org.chatId}",
                 "credential_username": credential.username if credential else None,
-                "logo_url": org.logo_url,
+                "logo_url": credential.logo_url if credential else None,
                 "created_at": None,  # В таблице orgs нет этих полей
                 "updated_at": None
             })
@@ -857,7 +873,7 @@ def admin_get_all_organizations(db: Session = Depends(get_db)):
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/api/admin/organizations")
-def admin_create_organization(org: schemas.OrganizationCreate, db: Session = Depends(get_db)):
+def admin_create_organization(org: schemas.OrganizationCreate, db: Session = Depends(get_db), local_db: Session = Depends(get_local_db)):
     """Создать новую организацию (только для администратора)"""
     try:
         # Проверка уникальности id (в orgs id = orgId)
@@ -865,9 +881,9 @@ def admin_create_organization(org: schemas.OrganizationCreate, db: Session = Dep
         if existing:
             raise HTTPException(status_code=400, detail=f"Organization with id={org.orgId} already exists")
 
-        # Если указаны credentials, проверяем уникальность username
+        # Если указаны credentials, проверяем уникальность username (локальная БД)
         if org.username:
-            existing_cred = db.query(models.OrgCredential).filter(models.OrgCredential.username == org.username).first()
+            existing_cred = local_db.query(models.OrgCredential).filter(models.OrgCredential.username == org.username).first()
             if existing_cred:
                 raise HTTPException(status_code=400, detail=f"Username '{org.username}' already exists")
 
@@ -879,7 +895,7 @@ def admin_create_organization(org: schemas.OrganizationCreate, db: Session = Dep
         db.add(new_org)
         db.flush()  # Сохраняем организацию, чтобы получить ID
 
-        # Создаем credentials если указаны username и password
+        # Создаем credentials если указаны username и password (локальная БД)
         if org.username and org.password:
             hashed_password = pwd_context.hash(org.password)
             new_credential = models.OrgCredential(
@@ -887,9 +903,10 @@ def admin_create_organization(org: schemas.OrganizationCreate, db: Session = Dep
                 username=org.username,
                 password_hash=hashed_password
             )
-            db.add(new_credential)
+            local_db.add(new_credential)
 
         db.commit()
+        local_db.commit()
         db.refresh(new_org)
 
         return {
@@ -903,10 +920,11 @@ def admin_create_organization(org: schemas.OrganizationCreate, db: Session = Dep
         raise
     except Exception as e:
         db.rollback()
+        local_db.rollback()
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.put("/api/admin/organizations/{org_id}")
-def admin_update_organization(org_id: int, org: schemas.OrganizationUpdate, db: Session = Depends(get_db)):
+def admin_update_organization(org_id: int, org: schemas.OrganizationUpdate, db: Session = Depends(get_db), local_db: Session = Depends(get_local_db)):
     """Обновить организацию (только для администратора)"""
     try:
         db_org = db.query(models.Org).filter(models.Org.id == org_id).first()
@@ -916,21 +934,22 @@ def admin_update_organization(org_id: int, org: schemas.OrganizationUpdate, db: 
         if org.name is not None:
             db_org.title = org.name
 
-        if org.logo_url is not None:
-            db_org.logo_url = org.logo_url
+        # Обновляем настройки в OrgCredential (локальная БД)
+        credential = local_db.query(models.OrgCredential).filter(models.OrgCredential.org_id == org_id).first()
 
-        if org.show_callto_columns is not None:
-            db_org.show_callto_columns = org.show_callto_columns
+        if org.logo_url is not None and credential:
+            credential.logo_url = org.logo_url
 
-        # Обновляем или создаем credentials
+        if org.show_callto_columns is not None and credential:
+            credential.show_callto_columns = org.show_callto_columns
+
+        # Обновляем или создаем credentials (локальная БД)
         if org.username or org.password:
-            credential = db.query(models.OrgCredential).filter(models.OrgCredential.org_id == org_id).first()
-
             if credential:
                 # Обновляем существующие credentials
                 if org.username:
                     # Проверяем уникальность нового username
-                    existing = db.query(models.OrgCredential).filter(
+                    existing = local_db.query(models.OrgCredential).filter(
                         models.OrgCredential.username == org.username,
                         models.OrgCredential.org_id != org_id
                     ).first()
@@ -944,7 +963,7 @@ def admin_update_organization(org_id: int, org: schemas.OrganizationUpdate, db: 
                 # Создаем новые credentials
                 if org.username and org.password:
                     # Проверяем уникальность username
-                    existing = db.query(models.OrgCredential).filter(models.OrgCredential.username == org.username).first()
+                    existing = local_db.query(models.OrgCredential).filter(models.OrgCredential.username == org.username).first()
                     if existing:
                         raise HTTPException(status_code=400, detail=f"Username '{org.username}' already exists")
 
@@ -953,9 +972,10 @@ def admin_update_organization(org_id: int, org: schemas.OrganizationUpdate, db: 
                         username=org.username,
                         password_hash=pwd_context.hash(org.password)
                     )
-                    db.add(new_credential)
+                    local_db.add(new_credential)
 
         db.commit()
+        local_db.commit()
         db.refresh(db_org)
 
         return {
@@ -969,6 +989,7 @@ def admin_update_organization(org_id: int, org: schemas.OrganizationUpdate, db: 
         raise
     except Exception as e:
         db.rollback()
+        local_db.rollback()
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.delete("/api/admin/organizations/{org_id}")
@@ -1016,18 +1037,18 @@ async def upload_logo(file: UploadFile = File(...)):
 
 # Phone Mappings Endpoints
 @app.get("/api/phone-mappings/{org_id}")
-def get_phone_mappings(org_id: int, db: Session = Depends(get_db)):
+def get_phone_mappings(org_id: int, local_db: Session = Depends(get_local_db)):
     """Получить все маппинги телефонов для организации"""
-    mappings = db.query(models.PhoneMapping).filter(
+    mappings = local_db.query(models.PhoneMapping).filter(
         models.PhoneMapping.org_id == org_id
     ).order_by(models.PhoneMapping.phone_number).all()
     return mappings
 
 @app.post("/api/phone-mappings", response_model=schemas.PhoneMapping)
-def create_phone_mapping(mapping: schemas.PhoneMappingCreate, db: Session = Depends(get_db)):
+def create_phone_mapping(mapping: schemas.PhoneMappingCreate, local_db: Session = Depends(get_local_db)):
     """Создать новый маппинг телефона"""
     # Проверяем существование маппинга
-    existing = db.query(models.PhoneMapping).filter(
+    existing = local_db.query(models.PhoneMapping).filter(
         models.PhoneMapping.org_id == mapping.org_id,
         models.PhoneMapping.phone_number == mapping.phone_number
     ).first()
@@ -1036,15 +1057,15 @@ def create_phone_mapping(mapping: schemas.PhoneMappingCreate, db: Session = Depe
         raise HTTPException(status_code=400, detail="Маппинг для этого номера уже существует")
 
     db_mapping = models.PhoneMapping(**mapping.dict())
-    db.add(db_mapping)
-    db.commit()
-    db.refresh(db_mapping)
+    local_db.add(db_mapping)
+    local_db.commit()
+    local_db.refresh(db_mapping)
     return db_mapping
 
 @app.put("/api/phone-mappings/{mapping_id}", response_model=schemas.PhoneMapping)
-def update_phone_mapping(mapping_id: int, mapping: schemas.PhoneMappingUpdate, db: Session = Depends(get_db)):
+def update_phone_mapping(mapping_id: int, mapping: schemas.PhoneMappingUpdate, local_db: Session = Depends(get_local_db)):
     """Обновить маппинг телефона"""
-    db_mapping = db.query(models.PhoneMapping).filter(models.PhoneMapping.id == mapping_id).first()
+    db_mapping = local_db.query(models.PhoneMapping).filter(models.PhoneMapping.id == mapping_id).first()
     if not db_mapping:
         raise HTTPException(status_code=404, detail="Маппинг не найден")
 
@@ -1056,19 +1077,19 @@ def update_phone_mapping(mapping_id: int, mapping: schemas.PhoneMappingUpdate, d
         db_mapping.color = mapping.color
 
     db_mapping.updated_at = datetime.utcnow()
-    db.commit()
-    db.refresh(db_mapping)
+    local_db.commit()
+    local_db.refresh(db_mapping)
     return db_mapping
 
 @app.delete("/api/phone-mappings/{mapping_id}")
-def delete_phone_mapping(mapping_id: int, db: Session = Depends(get_db)):
+def delete_phone_mapping(mapping_id: int, local_db: Session = Depends(get_local_db)):
     """Удалить маппинг телефона"""
-    db_mapping = db.query(models.PhoneMapping).filter(models.PhoneMapping.id == mapping_id).first()
+    db_mapping = local_db.query(models.PhoneMapping).filter(models.PhoneMapping.id == mapping_id).first()
     if not db_mapping:
         raise HTTPException(status_code=404, detail="Маппинг не найден")
 
-    db.delete(db_mapping)
-    db.commit()
+    local_db.delete(db_mapping)
+    local_db.commit()
     return {"message": "Маппинг удален"}
 
 @app.get("/api/admin/database/test")
@@ -1219,13 +1240,13 @@ def admin_test_custom_connection(config: dict):
 # ============================================
 
 @app.get("/api/dashboard-layout/{org_id}")
-def get_dashboard_layout(org_id: int, db: Session = Depends(get_db)):
+def get_dashboard_layout(org_id: int, local_db: Session = Depends(get_local_db)):
     """
     Получить dashboard layout для организации
     Если layout не найден, возвращает null
     """
     try:
-        layout = db.query(models.DashboardLayout).filter(
+        layout = local_db.query(models.DashboardLayout).filter(
             models.DashboardLayout.org_id == org_id
         ).first()
 
@@ -1249,20 +1270,21 @@ def get_dashboard_layout(org_id: int, db: Session = Depends(get_db)):
 @app.post("/api/dashboard-layout")
 def create_or_update_dashboard_layout(
     layout_input: schemas.DashboardLayoutCreate,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    local_db: Session = Depends(get_local_db)
 ):
     """
     Создать или обновить dashboard layout для организации
     Если layout уже существует - обновляет его, если нет - создает новый
     """
     try:
-        # Проверяем, существует ли организация
+        # Проверяем, существует ли организация (удалённая БД)
         org = db.query(models.Org).filter(models.Org.id == layout_input.org_id).first()
         if not org:
             raise HTTPException(status_code=404, detail=f"Organization with id={layout_input.org_id} not found")
 
-        # Ищем существующий layout
-        existing_layout = db.query(models.DashboardLayout).filter(
+        # Ищем существующий layout (локальная БД)
+        existing_layout = local_db.query(models.DashboardLayout).filter(
             models.DashboardLayout.org_id == layout_input.org_id
         ).first()
 
@@ -1270,8 +1292,8 @@ def create_or_update_dashboard_layout(
             # Обновляем существующий
             existing_layout.layout_data = layout_input.layout_data
             existing_layout.updated_at = datetime.utcnow()
-            db.commit()
-            db.refresh(existing_layout)
+            local_db.commit()
+            local_db.refresh(existing_layout)
 
             return {
                 "id": existing_layout.id,
@@ -1287,9 +1309,9 @@ def create_or_update_dashboard_layout(
                 org_id=layout_input.org_id,
                 layout_data=layout_input.layout_data
             )
-            db.add(new_layout)
-            db.commit()
-            db.refresh(new_layout)
+            local_db.add(new_layout)
+            local_db.commit()
+            local_db.refresh(new_layout)
 
             return {
                 "id": new_layout.id,
@@ -1302,25 +1324,25 @@ def create_or_update_dashboard_layout(
     except HTTPException:
         raise
     except Exception as e:
-        db.rollback()
+        local_db.rollback()
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.delete("/api/dashboard-layout/{org_id}")
-def delete_dashboard_layout(org_id: int, db: Session = Depends(get_db)):
+def delete_dashboard_layout(org_id: int, local_db: Session = Depends(get_local_db)):
     """
     Удалить dashboard layout для организации
     После удаления dashboard вернется к дефолтному layout
     """
     try:
-        layout = db.query(models.DashboardLayout).filter(
+        layout = local_db.query(models.DashboardLayout).filter(
             models.DashboardLayout.org_id == org_id
         ).first()
 
         if not layout:
             raise HTTPException(status_code=404, detail=f"Layout for organization {org_id} not found")
 
-        db.delete(layout)
-        db.commit()
+        local_db.delete(layout)
+        local_db.commit()
 
         return {
             "message": f"Dashboard layout for organization {org_id} deleted successfully"
@@ -1328,16 +1350,16 @@ def delete_dashboard_layout(org_id: int, db: Session = Depends(get_db)):
     except HTTPException:
         raise
     except Exception as e:
-        db.rollback()
+        local_db.rollback()
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/api/organizations/{org_id}/columns")
-def get_organization_columns(org_id: int, db: Session = Depends(get_db)):
+def get_organization_columns(org_id: int, local_db: Session = Depends(get_local_db)):
     """
     Получение конфигурации колонок таблицы звонков для организации
     """
     try:
-        columns = db.query(models.OrganizationColumn).filter(
+        columns = local_db.query(models.OrganizationColumn).filter(
             models.OrganizationColumn.org_id == org_id,
             models.OrganizationColumn.is_visible == True
         ).order_by(models.OrganizationColumn.column_order).all()
@@ -1358,7 +1380,7 @@ def get_organization_columns(org_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/api/organizations/{org_id}/columns")
-def create_organization_column(org_id: int, column_data: dict, db: Session = Depends(get_db)):
+def create_organization_column(org_id: int, column_data: dict, local_db: Session = Depends(get_local_db)):
     """
     Создание новой колонки для организации
     """
@@ -1374,9 +1396,9 @@ def create_organization_column(org_id: int, column_data: dict, db: Session = Dep
             is_visible=column_data.get('isVisible', True),
             width=column_data.get('width')
         )
-        db.add(new_column)
-        db.commit()
-        db.refresh(new_column)
+        local_db.add(new_column)
+        local_db.commit()
+        local_db.refresh(new_column)
 
         return {
             "message": "Column created successfully",
@@ -1387,16 +1409,16 @@ def create_organization_column(org_id: int, column_data: dict, db: Session = Dep
             }
         }
     except Exception as e:
-        db.rollback()
+        local_db.rollback()
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.put("/api/organizations/{org_id}/columns/{column_id}")
-def update_organization_column(org_id: int, column_id: int, column_data: dict, db: Session = Depends(get_db)):
+def update_organization_column(org_id: int, column_id: int, column_data: dict, local_db: Session = Depends(get_local_db)):
     """
     Обновление конфигурации колонки
     """
     try:
-        column = db.query(models.OrganizationColumn).filter(
+        column = local_db.query(models.OrganizationColumn).filter(
             models.OrganizationColumn.id == column_id,
             models.OrganizationColumn.org_id == org_id
         ).first()
@@ -1413,13 +1435,13 @@ def update_organization_column(org_id: int, column_id: int, column_data: dict, d
         if 'width' in column_data:
             column.width = column_data['width']
 
-        db.commit()
+        local_db.commit()
 
         return {"message": "Column updated successfully"}
     except HTTPException:
         raise
     except Exception as e:
-        db.rollback()
+        local_db.rollback()
         raise HTTPException(status_code=500, detail=str(e))
 
 if __name__ == "__main__":

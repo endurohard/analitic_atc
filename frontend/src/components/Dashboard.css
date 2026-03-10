@@ -1,6 +1,7 @@
 .dashboard {
   min-height: 100vh;
   background-color: #f5f5f5;
+  overflow-x: hidden;
 }
 
 .mobile-menu-overlay {
@@ -17,12 +18,18 @@
   position: sticky;
   top: 0;
   z-index: 100;
+  width: 100%;
+  box-sizing: border-box;
+  gap: 12px;
+  flex-wrap: wrap;
 }
 
 .header-left {
   display: flex;
   align-items: center;
   gap: 12px;
+  flex-shrink: 0;
+  min-width: 0;
 }
 
 .hamburger-btn {
@@ -77,6 +84,9 @@
   gap: 8px;
   align-items: center;
   flex-wrap: wrap;
+  flex-shrink: 1;
+  min-width: 0;
+  justify-content: flex-end;
 }
 
 .time-selector {
@@ -120,8 +130,15 @@
   box-shadow: 0 0 0 2px rgba(24, 144, 255, 0.2);
 }
 
-.dashboard-content {
+.dashboard-content-wrapper {
   padding: 16px;
+  max-width: 100%;
+  margin: 0 auto;
+  position: relative;
+  box-sizing: border-box;
+}
+
+.dashboard-content {
   max-width: 100%;
   margin: 0 auto;
   position: relative;
@@ -171,6 +188,13 @@
   flex: 1;
   overflow: auto;
   padding: 0;
+}
+
+/* Calls list section: hidden overflow so internal flex layout works */
+.section-content.calls-section-content {
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
 }
 
 /* React Grid Layout стили */
@@ -234,8 +258,23 @@
 
 /* Tablet */
 @media (max-width: 1024px) {
-  .dashboard-content {
+  .dashboard-content-wrapper {
     padding: 12px;
+  }
+
+  .dashboard-header {
+    padding: 10px 12px;
+    gap: 8px;
+  }
+
+  .header-right {
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+
+  .header-right .btn {
+    padding: 6px 10px;
+    font-size: 12px;
   }
 
   .section {
@@ -247,8 +286,15 @@
   }
 
   .time-selector {
-    font-size: 12px;
+    font-size: 11px;
     padding: 5px 8px;
+    min-width: auto;
+  }
+
+  .date-picker {
+    font-size: 11px;
+    padding: 5px 8px;
+    min-width: 120px;
   }
 }
 
@@ -363,7 +409,7 @@
     min-width: auto;
   }
 
-  .dashboard-content {
+  .dashboard-content-wrapper {
     padding: 8px;
   }
 
@@ -439,7 +485,7 @@
     padding: 4px 6px;
   }
 
-  .dashboard-content {
+  .dashboard-content-wrapper {
     padding: 6px;
   }
 
@@ -448,29 +494,15 @@
   }
 }
 
-/* Отдельная секция статистики по точкам */
-.mapping-stats-section-wrapper {
-  margin-top: 16px;
-}
-
-.mapping-stats-section-wrapper .section {
-  background: white;
-  border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-}
-
-.mapping-stats-section-wrapper .section-header {
-  padding: 16px 20px;
-  border-bottom: 1px solid #f0f0f0;
-}
-
-.mapping-stats-section-wrapper .section-content {
-  padding: 20px;
+/* Секция статистики по точкам */
+.mapping-stats-content {
+  overflow: auto !important;
+  height: calc(100% - 50px);
 }
 
 .mapping-stats-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
   gap: 16px;
 }
 
@@ -480,6 +512,7 @@
   padding: 16px;
   border-left: 4px solid #1890ff;
   transition: all 0.3s;
+  min-width: 0; /* Позволяет карточке сжиматься */
 }
 
 .mapping-stat-card:hover {
@@ -492,11 +525,14 @@
   justify-content: space-between;
   align-items: center;
   margin-bottom: 12px;
+  flex-wrap: wrap;
+  gap: 8px;
 }
 
 .mapping-stat-name {
   font-size: 16px;
   font-weight: 600;
+  word-break: break-word;
 }
 
 .mapping-stat-total {
@@ -505,33 +541,37 @@
   background: white;
   padding: 4px 12px;
   border-radius: 4px;
+  white-space: nowrap;
 }
 
 .mapping-stat-body {
   display: flex;
-  gap: 16px;
+  gap: 12px;
+  flex-wrap: wrap;
 }
 
 .mapping-stat-item {
   flex: 1;
+  min-width: 80px;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 8px;
-  padding: 12px;
+  gap: 6px;
+  padding: 10px 8px;
   background: white;
   border-radius: 6px;
 }
 
 .mapping-stat-label {
-  font-size: 12px;
+  font-size: 11px;
   color: #888;
   text-transform: uppercase;
-  letter-spacing: 0.5px;
+  letter-spacing: 0.3px;
+  text-align: center;
 }
 
 .mapping-stat-value {
-  font-size: 24px;
+  font-size: 22px;
   font-weight: 700;
 }
 
@@ -543,16 +583,101 @@
   color: #ff4d4f;
 }
 
-@media (max-width: 768px) {
+/* Планшеты */
+@media (max-width: 1024px) {
   .mapping-stats-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 12px;
   }
 
   .mapping-stat-card {
     padding: 12px;
   }
 
+  .mapping-stat-name {
+    font-size: 14px;
+  }
+
   .mapping-stat-value {
     font-size: 20px;
+  }
+
+  .mapping-stat-body {
+    gap: 8px;
+  }
+
+  .mapping-stat-item {
+    padding: 8px 6px;
+  }
+}
+
+/* Мобильные */
+@media (max-width: 768px) {
+  .mapping-stats-section-wrapper {
+    margin-top: 12px;
+  }
+
+  .mapping-stats-section-wrapper .section-content {
+    padding: 12px;
+  }
+
+  .mapping-stats-grid {
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 10px;
+  }
+
+  .mapping-stat-card {
+    padding: 10px;
+    border-left-width: 3px;
+  }
+
+  .mapping-stat-header {
+    margin-bottom: 8px;
+  }
+
+  .mapping-stat-name {
+    font-size: 13px;
+  }
+
+  .mapping-stat-total {
+    font-size: 12px;
+    padding: 3px 8px;
+  }
+
+  .mapping-stat-value {
+    font-size: 18px;
+  }
+
+  .mapping-stat-label {
+    font-size: 10px;
+  }
+
+  .mapping-stat-item {
+    padding: 6px 4px;
+    min-width: 60px;
+  }
+}
+
+/* Очень маленькие экраны */
+@media (max-width: 480px) {
+  .mapping-stats-grid {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  .mapping-stat-card {
+    padding: 10px;
+  }
+
+  .mapping-stat-body {
+    justify-content: space-around;
+  }
+
+  .mapping-stat-item {
+    flex: 0 1 45%;
+  }
+
+  .mapping-stat-value {
+    font-size: 16px;
   }
 }

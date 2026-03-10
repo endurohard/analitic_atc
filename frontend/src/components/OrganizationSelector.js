@@ -40,7 +40,7 @@ const OrganizationSelector = ({ user, onSelectOrganization, onLogout }) => {
       </div>
 
       <div className="org-grid">
-        {user?.organizations?.map((org) => (
+        {user?.organizations?.slice().sort((a, b) => a.id - b.id).map((org) => (
           <div
             key={org.id}
             className="org-card"

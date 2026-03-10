@@ -292,6 +292,7 @@ const Statistics = React.memo(({ statistics, orgId, timeRange, startDate, endDat
       <div className="statistics-grid">
         <div className="stat-card">
           <Chart
+            key={`accepted-${statistics.accepted}`}
             options={acceptedOptions.options}
             series={acceptedOptions.series}
             type="radialBar"
@@ -301,6 +302,7 @@ const Statistics = React.memo(({ statistics, orgId, timeRange, startDate, endDat
 
         <div className="stat-card">
           <Chart
+            key={`missed-${statistics.missed}`}
             options={missedOptions.options}
             series={missedOptions.series}
             type="radialBar"
@@ -310,6 +312,7 @@ const Statistics = React.memo(({ statistics, orgId, timeRange, startDate, endDat
 
         <div className="stat-card">
           <Chart
+            key={`total-${statistics.total}`}
             options={totalOptions.options}
             series={totalOptions.series}
             type="radialBar"
@@ -319,6 +322,7 @@ const Statistics = React.memo(({ statistics, orgId, timeRange, startDate, endDat
 
         <div className="stat-card">
           <Chart
+            key={`redialed-${statistics.notRedialed}`}
             options={notRedialedOptions.options}
             series={notRedialedOptions.series}
             type="radialBar"

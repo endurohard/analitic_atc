@@ -1,6 +1,26 @@
 version: '3.8'
 
 services:
+  # Локальная PostgreSQL база для аутентификации и настроек
+  local_db:
+    image: postgres:15-alpine
+    container_name: atc_analytics_local_db
+    environment:
+      - POSTGRES_USER=atc_local
+      - POSTGRES_PASSWORD=atc_local_password
+      - POSTGRES_DB=atc_local
+    volumes:
+      - local_postgres_data:/var/lib/postgresql/data
+      - ./backend/init_local_db.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - atc_network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U atc_local"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
   # Frontend - React приложение
   frontend:
     build:
@@ -36,12 +56,16 @@ services:
       - "8000:8000"
     environment:
       - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:${POSTGRES_PORT}/${POSTGRES_DB}
+      - LOCAL_DATABASE_URL=postgresql://atc_local:atc_local_password@local_db:5432/atc_local
       - POSTGRES_HOST=${POSTGRES_HOST}
       - POSTGRES_PORT=${POSTGRES_PORT}
     env_file:
       - .env
     volumes:
       - ./backend:/app
+    depends_on:
+      local_db:
+        condition: service_healthy
     networks:
       - atc_network
       - infobotit_bot_app_net
@@ -77,3 +101,4 @@ networks:
 
 volumes:
   postgres_data:
+  local_postgres_data:

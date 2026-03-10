@@ -35,7 +35,11 @@ const Login = ({ onLogin }) => {
       let userData;
       if (user.organizations) {
         // Суперадмин - организации уже в user.organizations
-        userData = user;
+        // Сортируем по ID для стабильного порядка
+        userData = {
+          ...user,
+          organizations: user.organizations.sort((a, b) => a.id - b.id)
+        };
       } else {
         // Обычный пользователь - создаем userData с одной организацией
         userData = {

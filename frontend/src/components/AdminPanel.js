@@ -56,7 +56,9 @@ const AdminPanel = ({ user, onLogout, onBack }) => {
     setError('');
     try {
       const response = await axios.get(`${API_URL}/api/admin/organizations`);
-      setOrganizations(response.data);
+      // Сортируем организации по ID для стабильного порядка
+      const sortedOrgs = response.data.sort((a, b) => a.id - b.id);
+      setOrganizations(sortedOrgs);
     } catch (err) {
       setError('Ошибка загрузки организаций: ' + (err.response?.data?.detail || err.message));
     } finally {
