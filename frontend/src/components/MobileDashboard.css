@@ -163,6 +163,28 @@
   cursor: pointer;
 }
 
+.mobile-menu-apply-btn {
+  width: 100%;
+  padding: 10px 12px;
+  background: #1890ff;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.mobile-menu-apply-btn:active {
+  background: #096dd9;
+}
+
+.mobile-menu-apply-btn:disabled {
+  background: #d9d9d9;
+  cursor: not-allowed;
+}
+
 .mobile-menu-btn {
   width: calc(100% - 32px);
   margin: 8px 16px;

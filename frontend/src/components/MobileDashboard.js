@@ -139,7 +139,7 @@ const MobileDashboard = ({ user, organization, onLogout, onChangeOrganization })
   });
   const [mappingStatistics, setMappingStatistics] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [timeRange, setTimeRange] = useState('30d');
+  const [timeRange, setTimeRange] = useState('24h');
   const [refreshInterval, setRefreshInterval] = useState(5);
   const [callType, setCallType] = useState('all');
   const [activeTab, setActiveTab] = useState('stats'); // stats, mappings, active, unprocessed, all
@@ -149,6 +149,9 @@ const MobileDashboard = ({ user, organization, onLogout, onChangeOrganization })
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [useCustomDates, setUseCustomDates] = useState(false);
+  const [appliedStartDate, setAppliedStartDate] = useState('');
+  const [appliedEndDate, setAppliedEndDate] = useState('');
+  const [appliedCustomDates, setAppliedCustomDates] = useState(false);
 
   // Пагинация
   const [currentPage, setCurrentPage] = useState(1);
@@ -164,30 +167,30 @@ const MobileDashboard = ({ user, organization, onLogout, onChangeOrganization })
     fetchData();
     const interval = setInterval(fetchData, refreshInterval * 1000);
     return () => clearInterval(interval);
-  }, [organization, timeRange, refreshInterval, callType, startDate, endDate, useCustomDates]);
+  }, [organization, timeRange, refreshInterval, callType, appliedStartDate, appliedEndDate, appliedCustomDates]);
 
   const fetchData = async () => {
     setLoading(true);
     try {
       const callsParams = { orgId: organization.orgId, limit: 100, timeRange };
       if (callType !== 'all') callsParams.direction = callType;
-      if (useCustomDates) {
-        if (startDate) callsParams.startDate = startDate;
-        if (endDate) callsParams.endDate = endDate;
+      if (appliedCustomDates) {
+        if (appliedStartDate) callsParams.startDate = appliedStartDate;
+        if (appliedEndDate) callsParams.endDate = appliedEndDate;
         delete callsParams.timeRange;
       }
 
       const unprocessedParams = { orgId: organization.orgId, limit: 100, timeRange };
-      if (useCustomDates) {
-        if (startDate) unprocessedParams.startDate = startDate;
-        if (endDate) unprocessedParams.endDate = endDate;
+      if (appliedCustomDates) {
+        if (appliedStartDate) unprocessedParams.startDate = appliedStartDate;
+        if (appliedEndDate) unprocessedParams.endDate = appliedEndDate;
         delete unprocessedParams.timeRange;
       }
 
       const statsParams = { orgId: organization.orgId, timeRange };
-      if (useCustomDates) {
-        if (startDate) statsParams.startDate = startDate;
-        if (endDate) statsParams.endDate = endDate;
+      if (appliedCustomDates) {
+        if (appliedStartDate) statsParams.startDate = appliedStartDate;
+        if (appliedEndDate) statsParams.endDate = appliedEndDate;
         delete statsParams.timeRange;
       }
 
@@ -779,6 +782,7 @@ const MobileDashboard = ({ user, organization, onLogout, onChangeOrganization })
                 setUseCustomDates(true);
               } else {
                 setUseCustomDates(false);
+                setAppliedCustomDates(false);
                 setTimeRange(e.target.value);
                 setMobileMenuOpen(false);
               }
@@ -809,6 +813,20 @@ const MobileDashboard = ({ user, organization, onLogout, onChangeOrganization })
                 value={endDate}
                 onChange={(e) => setEndDate(e.target.value)}
               />
+            </div>
+            <div className="mobile-menu-section">
+              <button
+                className="mobile-menu-apply-btn"
+                onClick={() => {
+                  setAppliedStartDate(startDate);
+                  setAppliedEndDate(endDate);
+                  setAppliedCustomDates(true);
+                  setMobileMenuOpen(false);
+                }}
+                disabled={!startDate && !endDate}
+              >
+                Применить
+              </button>
             </div>
           </>
         )}

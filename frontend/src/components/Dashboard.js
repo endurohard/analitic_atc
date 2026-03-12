@@ -21,12 +21,15 @@ const Dashboard = ({ user, organization, onLogout, onChangeOrganization }) => {
   });
   const [mappingStatistics, setMappingStatistics] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [timeRange, setTimeRange] = useState('30d');
+  const [timeRange, setTimeRange] = useState('24h');
   const [refreshInterval, setRefreshInterval] = useState(5); // в секундах
   const [callType, setCallType] = useState('all'); // all, inbound, outbound
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [useCustomDates, setUseCustomDates] = useState(false);
+  const [appliedStartDate, setAppliedStartDate] = useState('');
+  const [appliedEndDate, setAppliedEndDate] = useState('');
+  const [appliedCustomDates, setAppliedCustomDates] = useState(false);
   const [containerWidth, setContainerWidth] = useState(window.innerWidth - 32);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
@@ -64,7 +67,7 @@ const Dashboard = ({ user, organization, onLogout, onChangeOrganization }) => {
     fetchData();
     const interval = setInterval(fetchData, refreshInterval * 1000);
     return () => clearInterval(interval);
-  }, [organization, timeRange, refreshInterval, callType, startDate, endDate, useCustomDates]);
+  }, [organization, timeRange, refreshInterval, callType, appliedStartDate, appliedEndDate, appliedCustomDates]);
 
   // Fetch only calls when page/perPage/search changes
   useEffect(() => {
@@ -74,7 +77,7 @@ const Dashboard = ({ user, organization, onLogout, onChangeOrganization }) => {
   // Reset page to 1 when filters change
   useEffect(() => {
     setCallsPage(1);
-  }, [timeRange, callType, startDate, endDate, useCustomDates, callsSearchQuery]);
+  }, [timeRange, callType, appliedStartDate, appliedEndDate, appliedCustomDates, callsSearchQuery]);
 
   // Отслеживание изменения размера окна
   useEffect(() => {
@@ -219,9 +222,9 @@ const Dashboard = ({ user, organization, onLogout, onChangeOrganization }) => {
     if (callType !== 'all') {
       params.direction = callType;
     }
-    if (useCustomDates) {
-      if (startDate) params.startDate = startDate;
-      if (endDate) params.endDate = endDate;
+    if (appliedCustomDates) {
+      if (appliedStartDate) params.startDate = appliedStartDate;
+      if (appliedEndDate) params.endDate = appliedEndDate;
       delete params.timeRange;
     }
     if (search) {
@@ -253,9 +256,9 @@ const Dashboard = ({ user, organization, onLogout, onChangeOrganization }) => {
 
       // Загружаем необработанные звонки
       const unprocessedParams = { orgId: organization.orgId, limit: 100, timeRange: timeRange };
-      if (useCustomDates) {
-        if (startDate) unprocessedParams.startDate = startDate;
-        if (endDate) unprocessedParams.endDate = endDate;
+      if (appliedCustomDates) {
+        if (appliedStartDate) unprocessedParams.startDate = appliedStartDate;
+        if (appliedEndDate) unprocessedParams.endDate = appliedEndDate;
         delete unprocessedParams.timeRange;
       }
       const unprocessedResponse = await axios.get(`${API_URL}/api/calls-unprocessed`, {
@@ -265,9 +268,9 @@ const Dashboard = ({ user, organization, onLogout, onChangeOrganization }) => {
 
       // Загружаем статистику
       const statsParams = { orgId: organization.orgId, timeRange: timeRange };
-      if (useCustomDates) {
-        if (startDate) statsParams.startDate = startDate;
-        if (endDate) statsParams.endDate = endDate;
+      if (appliedCustomDates) {
+        if (appliedStartDate) statsParams.startDate = appliedStartDate;
+        if (appliedEndDate) statsParams.endDate = appliedEndDate;
         delete statsParams.timeRange;
       }
       const statsResponse = await axios.get(`${API_URL}/api/statistics/summary`, {
@@ -407,6 +410,7 @@ const Dashboard = ({ user, organization, onLogout, onChangeOrganization }) => {
                 setUseCustomDates(true);
               } else {
                 setUseCustomDates(false);
+                setAppliedCustomDates(false);
                 setTimeRange(e.target.value);
               }
               if (isMobile) setMobileMenuOpen(false);
@@ -434,6 +438,18 @@ const Dashboard = ({ user, organization, onLogout, onChangeOrganization }) => {
                 onChange={(e) => setEndDate(e.target.value)}
                 title="Дата окончания"
               />
+              <button
+                className="btn btn-primary"
+                onClick={() => {
+                  setAppliedStartDate(startDate);
+                  setAppliedEndDate(endDate);
+                  setAppliedCustomDates(true);
+                  if (isMobile) setMobileMenuOpen(false);
+                }}
+                disabled={!startDate && !endDate}
+              >
+                Применить
+              </button>
             </>
           )}
           {isAdmin && (
@@ -493,9 +509,9 @@ const Dashboard = ({ user, organization, onLogout, onChangeOrganization }) => {
             <Statistics
               statistics={statistics}
               orgId={organization.orgId}
-              timeRange={useCustomDates ? undefined : timeRange}
-              startDate={useCustomDates ? startDate : undefined}
-              endDate={useCustomDates ? endDate : undefined}
+              timeRange={appliedCustomDates ? undefined : timeRange}
+              startDate={appliedCustomDates ? appliedStartDate : undefined}
+              endDate={appliedCustomDates ? appliedEndDate : undefined}
             />
           </div>
         </div>
