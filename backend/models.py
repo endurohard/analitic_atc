@@ -166,6 +166,32 @@ class OrganizationColumn(LocalBase):
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
 
+class CallAnalysis(LocalBase):
+    """
+    Результат анализа звонка (локальная БД)
+    """
+    __tablename__ = "call_analyses"
+
+    id = Column(Integer, primary_key=True, index=True)
+    call_id = Column(Integer, nullable=False, index=True)
+    org_id = Column(Integer, nullable=False, index=True)
+    transcript = Column(String)
+    language = Column(String(10), default='ru')
+    duration_seconds = Column(Float)
+    filler_words_count = Column(Integer, default=0)
+    filler_words_detail = Column(JSON)
+    politeness_score = Column(Float, default=0)
+    politeness_detail = Column(JSON)
+    speech_speed_wpm = Column(Float)
+    recommendations = Column(JSON)
+    overall_score = Column(Float, default=0)
+    status = Column(String(20), default='pending')
+    error_message = Column(String)
+    processing_time_seconds = Column(Float)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
 # ============================================
 # УСТАРЕВШИЕ МОДЕЛИ (не используются)
 # ============================================

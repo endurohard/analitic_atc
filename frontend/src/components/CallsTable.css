@@ -33,6 +33,23 @@
   box-shadow: 0 0 0 2px rgba(24, 144, 255, 0.1);
 }
 
+.search-apply-btn {
+  padding: 7px 16px;
+  background: #1890ff;
+  border: 1px solid #1890ff;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  color: #fff;
+  transition: all 0.3s;
+  white-space: nowrap;
+}
+
+.search-apply-btn:hover {
+  background: #40a9ff;
+  border-color: #40a9ff;
+}
+
 .clear-search-btn {
   padding: 5px 10px;
   background: #fff;

@@ -22,7 +22,7 @@ const Dashboard = ({ user, organization, onLogout, onChangeOrganization }) => {
   const [mappingStatistics, setMappingStatistics] = useState([]);
   const [loading, setLoading] = useState(false);
   const [timeRange, setTimeRange] = useState('24h');
-  const [refreshInterval, setRefreshInterval] = useState(5); // в секундах
+  const [refreshInterval, setRefreshInterval] = useState(30); // в секундах
   const [callType, setCallType] = useState('all'); // all, inbound, outbound
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');

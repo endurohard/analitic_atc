@@ -1,8 +1,9 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import './CallsTable.css';
 import ContextMenu from './ContextMenu';
 import EditCallModal from './EditCallModal';
 import AudioPlayer from './AudioPlayer';
+// import CallAnalysisModal from './CallAnalysisModal'; // TODO: подключить после настройки whisper
 
 const CallsTable = ({
   calls, type, orgId, organization, onCallUpdated, user,
@@ -16,9 +17,9 @@ const CallsTable = ({
   const [columns, setColumns] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [editModalOpen, setEditModalOpen] = useState(false);
+  // const [analysisModalOpen, setAnalysisModalOpen] = useState(false); // TODO
+  // const [analysisCallId, setAnalysisCallId] = useState(null); // TODO
   const [resizingColumn, setResizingColumn] = useState(null);
-  const searchDebounceRef = useRef(null);
-
   // Server pagination mode
   const isServerPagination = totalItems !== undefined && onPageChange;
 
@@ -96,22 +97,22 @@ const CallsTable = ({
     }
   }, [orgId, type]);
 
-  // Debounced search for server-side
-  const handleSearchChange = useCallback((value) => {
-    setSearchQuery(value);
-
+  // Apply search (by button or Enter key)
+  const applySearch = useCallback(() => {
     if (isServerPagination && onSearchChange) {
-      if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
-      searchDebounceRef.current = setTimeout(() => {
-        onSearchChange(value);
-      }, 400);
+      onSearchChange(searchQuery);
     }
+    if (!isServerPagination) setLocalPage(1);
+  }, [isServerPagination, onSearchChange, searchQuery]);
+
+  const clearSearch = useCallback(() => {
+    setSearchQuery('');
+    if (isServerPagination && onSearchChange) {
+      onSearchChange('');
+    }
+    if (!isServerPagination) setLocalPage(1);
   }, [isServerPagination, onSearchChange]);
 
-  // Reset local page on search
-  useEffect(() => {
-    if (!isServerPagination) setLocalPage(1);
-  }, [searchQuery, isServerPagination]);
 
   // Column resize handlers
   const handleMouseDown = (columnKey, e) => {
@@ -382,10 +383,14 @@ const CallsTable = ({
             className="search-input"
             placeholder="Поиск по номеру телефона..."
             value={searchQuery}
-            onChange={(e) => handleSearchChange(e.target.value)}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter') applySearch(); }}
           />
+          <button className="search-apply-btn" onClick={applySearch} title="Найти">
+            Найти
+          </button>
           {searchQuery && (
-            <button className="clear-search-btn" onClick={() => handleSearchChange('')} title="Очистить поиск">
+            <button className="clear-search-btn" onClick={clearSearch} title="Очистить поиск">
               ✕
             </button>
           )}
@@ -612,6 +617,7 @@ const CallsTable = ({
           onSave={() => { setEditModalOpen(false); setSelectedCall(null); if (onCallUpdated) onCallUpdated(); }}
         />
       )}
+
     </div>
   );
 };

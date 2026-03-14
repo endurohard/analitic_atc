@@ -338,6 +338,9 @@ def get_calls(
         if search:
             search_digits = ''.join(c for c in search if c.isdigit())
             if search_digits:
+                # Убираем префикс 7/8 для 11-значных номеров (российский формат)
+                if len(search_digits) == 11 and search_digits[0] in ('7', '8'):
+                    search_digits = search_digits[1:]
                 query = query.filter(models.Customer.phone.ilike(f'%{search_digits}%'))
 
         # Общее количество записей (до пагинации)
@@ -1443,6 +1446,11 @@ def update_organization_column(org_id: int, column_id: int, column_data: dict, l
     except Exception as e:
         local_db.rollback()
         raise HTTPException(status_code=500, detail=str(e))
+
+# ============================================
+# АНАЛИЗ ЗВОНКОВ (Whisper + Quality Analysis)
+# ============================================
+
 
 if __name__ == "__main__":
     import uvicorn

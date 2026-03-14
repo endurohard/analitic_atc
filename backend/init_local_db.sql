@@ -53,12 +53,37 @@ CREATE TABLE IF NOT EXISTS organization_columns (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Таблица результатов анализа звонков
+CREATE TABLE IF NOT EXISTS call_analyses (
+    id SERIAL PRIMARY KEY,
+    call_id INTEGER NOT NULL,
+    org_id INTEGER NOT NULL,
+    transcript TEXT,
+    language VARCHAR(10) DEFAULT 'ru',
+    duration_seconds FLOAT,
+    filler_words_count INTEGER DEFAULT 0,
+    filler_words_detail JSONB,
+    politeness_score FLOAT DEFAULT 0,
+    politeness_detail JSONB,
+    speech_speed_wpm FLOAT,
+    recommendations JSONB,
+    overall_score FLOAT DEFAULT 0,
+    status VARCHAR(20) DEFAULT 'pending',
+    error_message TEXT,
+    processing_time_seconds FLOAT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
 -- Индексы
 CREATE INDEX IF NOT EXISTS idx_org_credentials_username ON org_credentials(username);
 CREATE INDEX IF NOT EXISTS idx_org_credentials_org_id ON org_credentials(org_id);
 CREATE INDEX IF NOT EXISTS idx_phone_mappings_org_id ON phone_mappings(org_id);
 CREATE INDEX IF NOT EXISTS idx_dashboard_layouts_org_id ON dashboard_layouts(org_id);
 CREATE INDEX IF NOT EXISTS idx_organization_columns_org_id ON organization_columns(org_id);
+CREATE INDEX IF NOT EXISTS idx_call_analyses_call_id ON call_analyses(call_id);
+CREATE INDEX IF NOT EXISTS idx_call_analyses_org_id ON call_analyses(org_id);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_call_analyses_unique ON call_analyses(call_id, org_id);
 
 -- Суперадмин (пароль: admin123 - поменяйте после первого входа!)
 -- Хеш сгенерирован bcrypt для 'admin123'
