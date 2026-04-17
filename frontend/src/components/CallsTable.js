@@ -53,13 +53,22 @@ const CallsTable = ({
   const formatOperator = (call) => {
     const v1 = call.callto1;
     const v2 = call.callto2;
-    const fmt = (v) => (v ? getPhoneMappingName(v) || v : '');
-    const d1 = fmt(v1);
-    const d2 = fmt(v2);
-    if (!d1 && !d2) return '-';
-    if (!d2 || d1 === d2) return d1;
-    if (!d1) return d2;
-    return `${d1} → ${d2}`;
+    const m1 = getPhoneMappingName(v1);
+    const m2 = getPhoneMappingName(v2);
+
+    // Если есть хотя бы один маппинг — показываем только маппинги,
+    // raw-номера (группы/очереди) скрываем.
+    if (m1 || m2) {
+      if (!m2 || m1 === m2) return m1 || m2;
+      if (!m1) return m2;
+      return `${m1} → ${m2}`;
+    }
+
+    // Иначе — показываем raw, чтобы ячейка не была пустой.
+    if (!v1 && !v2) return '-';
+    if (!v2 || v1 === v2) return v1 || v2;
+    if (!v1) return v2;
+    return `${v1} → ${v2}`;
   };
 
   const formatPhoneNumber = (phone) => {
