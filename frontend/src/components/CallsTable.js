@@ -48,17 +48,18 @@ const CallsTable = ({
     return mapping ? mapping.display_name : null;
   };
 
-  const hasOperator = calls.some(
-    (call) => getPhoneMappingName(call.callto1) || getPhoneMappingName(call.callto2)
-  );
+  const hasOperator = calls.some((call) => call.callto1 || call.callto2);
 
   const formatOperator = (call) => {
-    const m1 = getPhoneMappingName(call.callto1);
-    const m2 = getPhoneMappingName(call.callto2);
-    if (!m1 && !m2) return '-';
-    if (!m2 || m1 === m2) return m1;
-    if (!m1) return m2;
-    return `${m1} → ${m2}`;
+    const v1 = call.callto1;
+    const v2 = call.callto2;
+    const fmt = (v) => (v ? getPhoneMappingName(v) || v : '');
+    const d1 = fmt(v1);
+    const d2 = fmt(v2);
+    if (!d1 && !d2) return '-';
+    if (!d2 || d1 === d2) return d1;
+    if (!d1) return d2;
+    return `${d1} → ${d2}`;
   };
 
   const formatPhoneNumber = (phone) => {

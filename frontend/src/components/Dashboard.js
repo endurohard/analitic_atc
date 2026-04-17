@@ -53,6 +53,7 @@ const Dashboard = ({ user, organization, onLogout, onChangeOrganization }) => {
   const [layout, setLayout] = useState(defaultLayout);
   const [layoutLoaded, setLayoutLoaded] = useState(false);
   const [columnWidths, setColumnWidths] = useState({});
+  const [phoneMappings, setPhoneMappings] = useState(organization?.phone_mappings || []);
 
   const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
 
@@ -64,6 +65,31 @@ const Dashboard = ({ user, organization, onLogout, onChangeOrganization }) => {
     setLayoutLoaded(false);
     loadLayout();
   }, [organization]);
+
+  // Актуализация phone_mappings (после правок в Admin Panel без перезагрузки)
+  useEffect(() => {
+    const orgId = organization?.orgId;
+    if (!orgId) return;
+    let cancelled = false;
+    const loadMappings = async () => {
+      try {
+        const res = await axios.get(`${API_URL}/api/phone-mappings/${orgId}`);
+        if (cancelled) return;
+        setPhoneMappings(res.data || []);
+      } catch (e) {
+        // тихо: используем уже кэшированные маппинги из organization
+      }
+    };
+    loadMappings();
+    const onFocus = () => loadMappings();
+    window.addEventListener('focus', onFocus);
+    return () => {
+      cancelled = true;
+      window.removeEventListener('focus', onFocus);
+    };
+  }, [organization?.orgId, API_URL]);
+
+  const organizationWithMappings = { ...organization, phone_mappings: phoneMappings };
 
   useEffect(() => {
     fetchData();
@@ -528,7 +554,7 @@ const Dashboard = ({ user, organization, onLogout, onChangeOrganization }) => {
               <CallsTable
                 calls={activeCalls}
                 type="active"
-                organization={organization}
+                organization={organizationWithMappings}
                 user={user}
                 columnWidths={columnWidths}
                 setColumnWidths={setColumnWidths}
@@ -547,7 +573,7 @@ const Dashboard = ({ user, organization, onLogout, onChangeOrganization }) => {
             <CallsTable
               calls={unprocessedCalls}
               type="unprocessed"
-              organization={organization}
+              organization={organizationWithMappings}
               user={user}
               columnWidths={columnWidths}
               setColumnWidths={setColumnWidths}
@@ -566,7 +592,7 @@ const Dashboard = ({ user, organization, onLogout, onChangeOrganization }) => {
               calls={calls}
               type="all"
               orgId={organization?.orgId}
-              organization={organization}
+              organization={organizationWithMappings}
               onCallUpdated={fetchData}
               user={user}
               columnWidths={columnWidths}
