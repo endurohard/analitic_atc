@@ -5,6 +5,8 @@ import Chart from 'react-apexcharts';
 import './MobileDashboard.css';
 import AudioPlayer from './AudioPlayer';
 import MissedCallsNotification from './MissedCallsNotification';
+import HeroGauge from './HeroGauge';
+import ThemeToggle from './ThemeToggle';
 
 // Мемоизированный компонент карточки звонка с accordion
 const CallCard = React.memo(({ call, API_URL, formatPhoneNumber, formatDateTime, formatDuration, mappingName, isUnprocessed }) => {
@@ -618,6 +620,14 @@ const MobileDashboard = ({ user, organization, onLogout, onChangeOrganization })
         };
 
         return (
+          <>
+          <HeroGauge
+            title="Приём звонков"
+            subtitle="Доля принятых вызовов"
+            value={statistics.total > 0 ? (statistics.accepted / statistics.total) * 100 : 0}
+            caption={`Принято ${statistics.accepted} из ${statistics.total}${statistics.missed ? ` · пропущено ${statistics.missed}` : ''}`}
+            tone="mint"
+          />
           <div className="mobile-stats">
             <div className="mobile-stat-card">
               <Chart
@@ -656,6 +666,7 @@ const MobileDashboard = ({ user, organization, onLogout, onChangeOrganization })
               />
             </div>
           </div>
+          </>
         );
 
       case 'mappings':
@@ -760,6 +771,8 @@ const MobileDashboard = ({ user, organization, onLogout, onChangeOrganization })
           )}
           {lastUpdateTime && <div className="mobile-last-update">Обновлено: {lastUpdateTime}</div>}
         </div>
+
+        <ThemeToggle />
 
         <button className="mobile-refresh" onClick={fetchData} disabled={loading}>
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" className={loading ? 'spin' : ''}>

@@ -1,6 +1,6 @@
 .dashboard {
   min-height: 100vh;
-  background-color: #f5f5f5;
+  background-color: var(--bg-canvas);
   overflow-x: hidden;
 }
 
@@ -9,12 +9,12 @@
 }
 
 .dashboard-header {
-  background: white;
+  background: var(--bg-surface);
   padding: 12px 16px;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--shadow-header);
   position: sticky;
   top: 0;
   z-index: 100;
@@ -36,26 +36,26 @@
   display: none;
   background: none;
   border: none;
-  color: #333;
+  color: var(--text-primary);
   cursor: pointer;
   padding: 4px;
-  border-radius: 4px;
+  border-radius: var(--radius-xs);
   transition: background-color 0.2s;
 }
 
 .hamburger-btn:hover {
-  background-color: rgba(0, 0, 0, 0.05);
+  background-color: var(--bg-hover);
 }
 
 .hamburger-btn:active {
-  background-color: rgba(0, 0, 0, 0.1);
+  background-color: var(--bg-muted);
 }
 
 .org-badge {
   display: flex;
   align-items: center;
   gap: 8px;
-  color: #1890ff;
+  color: var(--accent-primary);
 }
 
 .org-badge svg {
@@ -66,7 +66,7 @@
 
 .org-badge h2 {
   font-size: 16px;
-  color: #333;
+  color: var(--text-primary);
   margin: 0;
   display: flex;
   align-items: center;
@@ -76,7 +76,7 @@
 
 .user-name {
   font-size: 11px;
-  color: #999;
+  color: var(--text-subtle);
 }
 
 .header-right {
@@ -91,43 +91,45 @@
 
 .time-selector {
   padding: 6px 10px;
-  border: 1px solid #d9d9d9;
-  border-radius: 4px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-xs);
   font-size: 13px;
   cursor: pointer;
-  background: white;
+  background: var(--bg-input);
+  color: var(--text-primary);
   transition: all 0.3s ease;
 }
 
 .time-selector:hover {
-  border-color: #1890ff;
+  border-color: var(--accent-primary);
 }
 
 .time-selector:focus {
   outline: none;
-  border-color: #1890ff;
-  box-shadow: 0 0 0 2px rgba(24, 144, 255, 0.2);
+  border-color: var(--accent-primary);
+  box-shadow: 0 0 0 2px var(--accent-primary-soft);
 }
 
 .date-picker {
   padding: 6px 10px;
-  border: 1px solid #d9d9d9;
-  border-radius: 4px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-xs);
   font-size: 13px;
   cursor: pointer;
-  background: white;
+  background: var(--bg-input);
+  color: var(--text-primary);
   transition: all 0.3s ease;
   min-width: 140px;
 }
 
 .date-picker:hover {
-  border-color: #1890ff;
+  border-color: var(--accent-primary);
 }
 
 .date-picker:focus {
   outline: none;
-  border-color: #1890ff;
-  box-shadow: 0 0 0 2px rgba(24, 144, 255, 0.2);
+  border-color: var(--accent-primary);
+  box-shadow: 0 0 0 2px var(--accent-primary-soft);
 }
 
 .dashboard-content-wrapper {
@@ -145,9 +147,9 @@
 }
 
 .section {
-  background: white;
-  border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  background: var(--bg-surface);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-card);
   display: flex;
   flex-direction: column;
   height: 100%;
@@ -156,8 +158,8 @@
 
 .section-header {
   padding: 12px 16px;
-  border-bottom: 1px solid #f0f0f0;
-  background: #fafafa;
+  border-bottom: 1px solid var(--border-muted);
+  background: var(--bg-elevated);
   cursor: move;
   user-select: none;
   display: flex;
@@ -167,20 +169,20 @@
 }
 
 .section-header:hover {
-  background: #f0f0f0;
+  background: var(--bg-hover);
 }
 
 .section-header h3 {
   font-size: 16px;
   font-weight: 600;
-  color: #333;
+  color: var(--text-primary);
   margin: 0;
 }
 
 .section-header::after {
   content: '⋮⋮';
   font-size: 18px;
-  color: #999;
+  color: var(--text-subtle);
   letter-spacing: -2px;
 }
 
@@ -220,12 +222,12 @@
 }
 
 .react-grid-item.react-grid-placeholder {
-  background: rgba(24, 144, 255, 0.15);
+  background: var(--info-bg);
   opacity: 0.5;
   transition-duration: 100ms;
   z-index: 2;
-  border-radius: 8px;
-  border: 2px dashed #1890ff;
+  border-radius: var(--radius-md);
+  border: 2px dashed var(--accent-primary);
 }
 
 .react-grid-item > .react-resizable-handle {
@@ -241,8 +243,8 @@
   bottom: 3px;
   width: 8px;
   height: 8px;
-  border-right: 2px solid rgba(0, 0, 0, 0.4);
-  border-bottom: 2px solid rgba(0, 0, 0, 0.4);
+  border-right: 2px solid var(--text-subtle);
+  border-bottom: 2px solid var(--text-subtle);
 }
 
 .react-resizable-hide > .react-resizable-handle {
@@ -252,7 +254,7 @@
 .no-data {
   padding: 40px 16px;
   text-align: center;
-  color: #999;
+  color: var(--text-subtle);
   font-size: 13px;
 }
 
@@ -312,7 +314,7 @@
     left: 0;
     right: 0;
     bottom: 0;
-    background: rgba(0, 0, 0, 0.5);
+    background: var(--modal-scrim);
     z-index: 98;
     animation: fadeIn 0.3s ease;
   }
@@ -372,8 +374,8 @@
     right: -100%;
     width: 280px;
     max-width: 85vw;
-    background: white;
-    box-shadow: -2px 0 8px rgba(0, 0, 0, 0.15);
+    background: var(--bg-surface);
+    box-shadow: -2px 0 8px rgba(0, 0, 0, 0.3);
     padding: 16px;
     transition: right 0.3s ease;
     flex-direction: column;
@@ -415,7 +417,7 @@
 
   .section {
     margin-bottom: 10px;
-    border-radius: 6px;
+    border-radius: var(--radius-sm);
   }
 
   .section-header {
@@ -507,17 +509,17 @@
 }
 
 .mapping-stat-card {
-  background: #fafafa;
-  border-radius: 8px;
+  background: var(--bg-elevated);
+  border-radius: var(--radius-md);
   padding: 16px;
-  border-left: 4px solid #1890ff;
+  border-left: 4px solid var(--accent-primary);
   transition: all 0.3s;
-  min-width: 0; /* Позволяет карточке сжиматься */
+  min-width: 0;
 }
 
 .mapping-stat-card:hover {
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  box-shadow: var(--shadow-card);
 }
 
 .mapping-stat-header {
@@ -533,14 +535,15 @@
   font-size: 16px;
   font-weight: 600;
   word-break: break-word;
+  color: var(--text-primary);
 }
 
 .mapping-stat-total {
   font-size: 14px;
-  color: #666;
-  background: white;
+  color: var(--text-muted);
+  background: var(--bg-surface);
   padding: 4px 12px;
-  border-radius: 4px;
+  border-radius: var(--radius-xs);
   white-space: nowrap;
 }
 
@@ -558,13 +561,13 @@
   align-items: center;
   gap: 6px;
   padding: 10px 8px;
-  background: white;
-  border-radius: 6px;
+  background: var(--bg-surface);
+  border-radius: var(--radius-sm);
 }
 
 .mapping-stat-label {
   font-size: 11px;
-  color: #888;
+  color: var(--text-subtle);
   text-transform: uppercase;
   letter-spacing: 0.3px;
   text-align: center;
@@ -573,14 +576,15 @@
 .mapping-stat-value {
   font-size: 22px;
   font-weight: 700;
+  color: var(--text-primary);
 }
 
 .mapping-stat-value.success {
-  color: #52c41a;
+  color: var(--success);
 }
 
 .mapping-stat-value.danger {
-  color: #ff4d4f;
+  color: var(--danger);
 }
 
 /* Планшеты */

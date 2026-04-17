@@ -1,12 +1,12 @@
 .org-selector-container {
   min-height: 100vh;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: var(--brand-gradient);
   padding: 40px 20px;
 }
 
 .org-selector-header {
   text-align: center;
-  color: white;
+  color: #ffffff;
   margin-bottom: 40px;
   position: relative;
 }
@@ -37,17 +37,17 @@
 }
 
 .org-card {
-  background: white;
-  border-radius: 12px;
+  background: var(--bg-surface);
+  border-radius: var(--radius-xl);
   padding: 32px;
   cursor: pointer;
   transition: all 0.3s ease;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--shadow-card);
 }
 
 .org-card:hover {
   transform: translateY(-4px);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+  box-shadow: var(--shadow-overlay);
 }
 
 .org-card-content {
@@ -73,12 +73,12 @@
   width: auto;
   height: auto;
   object-fit: contain;
-  border-radius: 8px;
+  border-radius: var(--radius-md);
 }
 
 .org-card h3 {
   font-size: 20px;
-  color: #333;
+  color: var(--text-primary);
   margin: 0;
 }
 
@@ -90,34 +90,34 @@
 }
 
 .badge-admin {
-  background-color: #fff7e6;
-  color: #fa8c16;
+  background-color: var(--warning-bg);
+  color: var(--warning);
 }
 
 .badge-user {
-  background-color: #e6f7ff;
-  color: #1890ff;
+  background-color: var(--info-bg);
+  color: var(--info);
 }
 
 .badge-viewer {
-  background-color: #f6ffed;
-  color: #52c41a;
+  background-color: var(--success-bg);
+  color: var(--success);
 }
 
 .badge-default {
-  background-color: #f0f0f0;
-  color: #666;
+  background-color: var(--bg-hover);
+  color: var(--text-muted);
 }
 
 .org-card-footer {
   margin-top: 16px;
   padding-top: 16px;
-  border-top: 1px solid #f0f0f0;
+  border-top: 1px solid var(--border-muted);
   text-align: center;
 }
 
 .org-card-footer span {
-  color: #1890ff;
+  color: var(--accent-primary);
   font-size: 14px;
   font-weight: 500;
 }

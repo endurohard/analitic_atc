@@ -8,6 +8,7 @@ import './Dashboard.css';
 import CallsTable from './CallsTable';
 import Statistics from './Statistics';
 import MissedCallsNotification from './MissedCallsNotification';
+import ThemeToggle from './ThemeToggle';
 
 const Dashboard = ({ user, organization, onLogout, onChangeOrganization }) => {
   const navigate = useNavigate();
@@ -478,6 +479,7 @@ const Dashboard = ({ user, organization, onLogout, onChangeOrganization }) => {
               </button>
             </>
           )}
+          <ThemeToggle />
           <button className="btn btn-secondary" onClick={() => {
             onLogout();
             if (isMobile) setMobileMenuOpen(false);

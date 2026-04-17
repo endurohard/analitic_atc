@@ -41,6 +41,18 @@ const CallDetailsModal = ({ isOpen, onClose, category, orgId, timeRange, startDa
     }
   }, [isOpen, orgId, category, timeRange, startDate, endDate]);
 
+  useEffect(() => {
+    if (!isOpen) return;
+    const onKey = (e) => { if (e.key === 'Escape') onClose(); };
+    document.addEventListener('keydown', onKey);
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.removeEventListener('keydown', onKey);
+      document.body.style.overflow = prev;
+    };
+  }, [isOpen, onClose]);
+
   const fetchCalls = async () => {
     setLoading(true);
     setError('');

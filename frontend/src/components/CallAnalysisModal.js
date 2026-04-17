@@ -17,6 +17,17 @@ const CallAnalysisModal = ({ callId, orgId, onClose }) => {
     };
   }, [callId, orgId]);
 
+  useEffect(() => {
+    const onKey = (e) => { if (e.key === 'Escape') onClose(); };
+    document.addEventListener('keydown', onKey);
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.removeEventListener('keydown', onKey);
+      document.body.style.overflow = prev;
+    };
+  }, [onClose]);
+
   const startAnalysis = async () => {
     setLoading(true);
     setError('');

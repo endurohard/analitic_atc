@@ -126,64 +126,66 @@
 
 /* Статистика по маппингам */
 .mapping-stats-section {
-  margin-top: 24px;
-  padding: 20px;
-  background: white;
-  border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  margin-top: var(--space-6);
+  padding: var(--space-5);
+  background: var(--bg-surface);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-card);
+  border: 1px solid var(--border-default);
 }
 
 .mapping-stats-title {
-  font-size: 18px;
-  font-weight: 600;
-  color: #333;
-  margin: 0 0 20px 0;
-  padding-bottom: 12px;
-  border-bottom: 2px solid #f0f0f0;
+  font-size: var(--fs-15);
+  font-weight: var(--fw-semibold);
+  color: var(--text-primary);
+  margin: 0 0 var(--space-5) 0;
+  padding-bottom: var(--space-3);
+  border-bottom: 1px solid var(--border-default);
 }
 
 .mapping-stats-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  gap: 16px;
+  gap: var(--space-4);
 }
 
 .mapping-stat-card {
-  background: #fafafa;
-  border-radius: 8px;
-  padding: 16px;
-  border-left: 4px solid #1890ff;
-  transition: all 0.3s;
+  background: var(--bg-elevated);
+  border-radius: var(--radius-md);
+  padding: var(--space-4);
+  border-left: 4px solid var(--accent-primary);
+  transition: transform var(--transition-base), box-shadow var(--transition-base);
 }
 
 .mapping-stat-card:hover {
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  box-shadow: var(--shadow-overlay);
 }
 
 .mapping-stat-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 12px;
+  margin-bottom: var(--space-3);
 }
 
 .mapping-stat-name {
-  font-size: 16px;
-  font-weight: 600;
+  font-size: var(--fs-15);
+  font-weight: var(--fw-semibold);
+  color: var(--text-primary);
 }
 
 .mapping-stat-total {
-  font-size: 14px;
-  color: #666;
-  background: white;
-  padding: 4px 12px;
-  border-radius: 4px;
+  font-size: var(--fs-13);
+  color: var(--text-muted);
+  background: var(--bg-surface);
+  padding: var(--space-1) var(--space-3);
+  border-radius: var(--radius-xs);
 }
 
 .mapping-stat-body {
   display: flex;
-  gap: 16px;
+  gap: var(--space-4);
 }
 
 .mapping-stat-item {
@@ -191,30 +193,31 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 8px;
-  padding: 12px;
-  background: white;
-  border-radius: 6px;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  background: var(--bg-surface);
+  border-radius: var(--radius-sm);
 }
 
 .mapping-stat-label {
-  font-size: 12px;
-  color: #888;
+  font-size: var(--fs-12);
+  color: var(--text-muted);
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
 
 .mapping-stat-value {
-  font-size: 24px;
-  font-weight: 700;
+  font-size: var(--fs-25);
+  font-weight: var(--fw-bold);
+  color: var(--text-primary);
 }
 
 .mapping-stat-value.success {
-  color: #52c41a;
+  color: var(--status-answered);
 }
 
 .mapping-stat-value.danger {
-  color: #ff4d4f;
+  color: var(--status-missed);
 }
 
 @media (max-width: 768px) {

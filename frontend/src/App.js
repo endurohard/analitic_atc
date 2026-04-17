@@ -7,6 +7,7 @@ import Dashboard from './components/Dashboard';
 import MobileDashboard from './components/MobileDashboard';
 import OrganizationSelector from './components/OrganizationSelector';
 import AdminPanel from './components/AdminPanel';
+import { ThemeProvider } from './contexts/ThemeContext';
 
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -85,7 +86,8 @@ function App() {
   const DashboardComponent = isMobile ? MobileDashboard : Dashboard;
 
   return (
-    <Router basename="/analitic">
+    <ThemeProvider>
+    <Router basename={process.env.PUBLIC_URL || '/'}>
       <div className="App">
         <Routes>
           <Route
@@ -149,6 +151,7 @@ function App() {
         </Routes>
       </div>
     </Router>
+    </ThemeProvider>
   );
 }
 

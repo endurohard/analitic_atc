@@ -1,0 +1,91 @@
+.hero-gauge {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-xl);
+  padding: var(--space-5);
+  box-shadow: var(--shadow-card);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  position: relative;
+  overflow: hidden;
+}
+
+.hero-gauge__header {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.hero-gauge__title {
+  font-size: var(--fs-15);
+  font-weight: var(--fw-semibold);
+  color: var(--text-primary);
+}
+
+.hero-gauge__subtitle {
+  font-size: var(--fs-12);
+  color: var(--text-muted);
+}
+
+.hero-gauge__caption {
+  font-size: var(--fs-11);
+  color: var(--text-subtle);
+  line-height: 1.5;
+}
+
+.hero-gauge__arc-wrap {
+  position: relative;
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: flex-end;
+  margin-top: var(--space-2);
+}
+
+.hero-gauge__svg {
+  width: 100%;
+  max-width: 220px;
+  height: auto;
+  display: block;
+}
+
+.hero-gauge__track {
+  fill: none;
+  stroke: var(--bg-elevated);
+}
+
+.hero-gauge__arc {
+  transition: stroke-dashoffset 800ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.hero-gauge__value {
+  position: absolute;
+  bottom: 2px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: var(--fs-25);
+  font-weight: var(--fw-bold);
+  color: var(--text-primary);
+  line-height: 1;
+  letter-spacing: -0.02em;
+}
+
+.hero-gauge__value-unit {
+  font-size: var(--fs-15);
+  color: var(--text-muted);
+  margin-left: 2px;
+  font-weight: var(--fw-medium);
+}
+
+.hero-gauge--mint .hero-gauge__stop-from { stop-color: #a9dfd8; stop-opacity: 0.4; }
+.hero-gauge--mint .hero-gauge__stop-to   { stop-color: #a9dfd8; stop-opacity: 1; }
+
+.hero-gauge--warning .hero-gauge__stop-from { stop-color: #fcb859; stop-opacity: 0.4; }
+.hero-gauge--warning .hero-gauge__stop-to   { stop-color: #feb95a; stop-opacity: 1; }
+
+.hero-gauge--primary .hero-gauge__stop-from { stop-color: #28aef3; stop-opacity: 0.4; }
+.hero-gauge--primary .hero-gauge__stop-to   { stop-color: #20aef3; stop-opacity: 1; }
+
+.hero-gauge--lavender .hero-gauge__stop-from { stop-color: #f2c8ed; stop-opacity: 0.4; }
+.hero-gauge--lavender .hero-gauge__stop-to   { stop-color: #f2c8ed; stop-opacity: 1; }

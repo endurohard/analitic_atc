@@ -4,7 +4,7 @@
   left: 0;
   right: 0;
   bottom: 0;
-  background-color: rgba(0, 0, 0, 0.6);
+  background-color: var(--modal-scrim);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -13,14 +13,14 @@
 }
 
 .modal-content {
-  background: white;
-  border-radius: 8px;
+  background: var(--bg-surface);
+  border-radius: var(--radius-md);
   padding: 24px;
   max-width: 900px;
   width: 100%;
   max-height: 80vh;
   overflow-y: auto;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+  box-shadow: var(--shadow-overlay);
   position: relative;
 }
 
@@ -30,13 +30,13 @@
   align-items: center;
   margin-bottom: 20px;
   padding-bottom: 16px;
-  border-bottom: 2px solid #f0f0f0;
+  border-bottom: 2px solid var(--border-muted);
 }
 
 .modal-title {
   font-size: 20px;
   font-weight: 600;
-  color: #333;
+  color: var(--text-primary);
   margin: 0;
 }
 
@@ -45,20 +45,20 @@
   border: none;
   font-size: 24px;
   cursor: pointer;
-  color: #666;
+  color: var(--text-muted);
   padding: 0;
   width: 32px;
   height: 32px;
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 4px;
+  border-radius: var(--radius-xs);
   transition: all 0.2s;
 }
 
 .modal-close:hover {
-  background-color: #f0f0f0;
-  color: #333;
+  background-color: var(--bg-hover);
+  color: var(--text-primary);
 }
 
 .modal-body {
@@ -70,21 +70,21 @@
   justify-content: center;
   align-items: center;
   min-height: 200px;
-  color: #666;
+  color: var(--text-muted);
 }
 
 .modal-error {
   padding: 16px;
-  background-color: #fff2f0;
-  color: #ff4d4f;
-  border-radius: 4px;
-  border: 1px solid #ffccc7;
+  background-color: var(--danger-bg);
+  color: var(--danger);
+  border-radius: var(--radius-xs);
+  border: 1px solid var(--danger-border);
 }
 
 .modal-empty {
   text-align: center;
   padding: 40px 20px;
-  color: #999;
+  color: var(--text-subtle);
 }
 
 .calls-detail-table {
@@ -94,7 +94,7 @@
 }
 
 .calls-detail-table thead {
-  background-color: #fafafa;
+  background-color: var(--bg-elevated);
 }
 
 .calls-detail-table th {
@@ -102,23 +102,23 @@
   text-align: left;
   font-size: 13px;
   font-weight: 600;
-  color: #666;
-  border-bottom: 2px solid #f0f0f0;
+  color: var(--text-muted);
+  border-bottom: 2px solid var(--border-muted);
 }
 
 .calls-detail-table td {
   padding: 12px;
-  border-bottom: 1px solid #f0f0f0;
+  border-bottom: 1px solid var(--border-muted);
   font-size: 13px;
-  color: #333;
+  color: var(--text-primary);
 }
 
 .calls-detail-table tbody tr:hover {
-  background-color: #fafafa;
+  background-color: var(--bg-row-hover);
 }
 
 .call-number {
-  color: #1890ff;
+  color: var(--accent-primary);
   font-weight: 500;
 }
 
@@ -131,17 +131,17 @@
 }
 
 .call-status.answered {
-  background-color: #f6ffed;
-  color: #52c41a;
+  background-color: var(--success-bg);
+  color: var(--success);
 }
 
 .call-status.missed {
-  background-color: #fff2f0;
-  color: #ff4d4f;
+  background-color: var(--danger-bg);
+  color: var(--danger);
 }
 
 .call-date {
-  color: #666;
+  color: var(--text-muted);
   font-size: 12px;
 }
 

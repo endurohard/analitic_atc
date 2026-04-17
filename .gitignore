@@ -45,3 +45,5 @@ build/
 # Docker
 *.log
 backend/uploads
+# Local LLM wiki (Karpathy pattern) — managed by ~/.claude/scripts/wiki-init.sh
+Wiki/

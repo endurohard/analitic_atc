@@ -1,0 +1,43 @@
+.theme-toggle {
+  background: transparent;
+  border: none;
+  padding: 4px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+}
+
+.theme-toggle__track {
+  width: 40px;
+  height: 22px;
+  border-radius: var(--radius-pill);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-default);
+  position: relative;
+  transition: background var(--transition-base);
+  display: inline-flex;
+  align-items: center;
+  padding: 2px;
+}
+
+.theme-toggle__thumb {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--accent-primary);
+  color: var(--bg-canvas);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform var(--transition-base), background var(--transition-base);
+  box-shadow: var(--shadow-card);
+}
+
+.theme-toggle__track--light .theme-toggle__thumb {
+  transform: translateX(18px);
+  background: var(--accent-warning);
+}
+
+.theme-toggle:hover .theme-toggle__track {
+  border-color: var(--accent-primary);
+}

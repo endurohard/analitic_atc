@@ -1,5 +1,8 @@
 import React, { useState, useEffect } from 'react';
+import axios from 'axios';
 import './EditCallModal.css';
+
+const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
 
 const EditCallModal = ({ call, orgId, onClose, onSave }) => {
   const [formData, setFormData] = useState({
@@ -34,33 +37,36 @@ const EditCallModal = ({ call, orgId, onClose, onSave }) => {
     setError(null);
 
     try {
-      const response = await fetch(`/api/calls/${call.id}?orgId=${orgId}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(formData)
-      });
-
-      if (!response.ok) {
-        throw new Error('Ошибка при сохранении данных');
-      }
-
-      const result = await response.json();
-      onSave(result);
+      const { data } = await axios.put(
+        `${API_URL}/api/calls/${call.id}`,
+        formData,
+        { params: { orgId } }
+      );
+      onSave(data);
       onClose();
     } catch (err) {
-      setError(err.message);
+      setError(err.response?.data?.detail || err.message || 'Ошибка при сохранении данных');
     } finally {
       setLoading(false);
     }
   };
 
   const handleOverlayClick = (e) => {
-    if (e.target.className === 'edit-call-modal-overlay') {
+    if (e.target === e.currentTarget) {
       onClose();
     }
   };
+
+  useEffect(() => {
+    const onKey = (e) => { if (e.key === 'Escape') onClose(); };
+    document.addEventListener('keydown', onKey);
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.removeEventListener('keydown', onKey);
+      document.body.style.overflow = prev;
+    };
+  }, [onClose]);
 
   if (!call) return null;
 

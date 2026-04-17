@@ -1,6 +1,6 @@
 .welcome-container {
   min-height: 100vh;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: var(--brand-gradient);
   display: flex;
   flex-direction: column;
 }
@@ -15,7 +15,7 @@
   display: flex;
   align-items: center;
   gap: 15px;
-  color: white;
+  color: #ffffff;
 }
 
 .logo-icon {
@@ -52,7 +52,7 @@
 
 .welcome-hero {
   text-align: center;
-  color: white;
+  color: #ffffff;
   margin-bottom: 80px;
   animation: fadeInUp 0.8s ease-out;
 }
@@ -83,13 +83,13 @@
 }
 
 .btn-primary {
-  background: white;
+  background: #ffffff;
   color: #667eea;
   border: none;
   padding: 16px 48px;
   font-size: 18px;
   font-weight: 600;
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   cursor: pointer;
   transition: all 0.3s ease;
   box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
@@ -117,9 +117,9 @@
   background: rgba(255, 255, 255, 0.1);
   backdrop-filter: blur(10px);
   border: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: 12px;
+  border-radius: var(--radius-xl);
   padding: 30px;
-  color: white;
+  color: #ffffff;
   transition: all 0.3s ease;
   animation: fadeInUp 0.8s ease-out;
   animation-fill-mode: both;
@@ -169,7 +169,7 @@
 
 .stat-item {
   text-align: center;
-  color: white;
+  color: #ffffff;
 }
 
 .stat-number {
@@ -193,7 +193,7 @@
 .welcome-footer {
   padding: 30px 40px;
   text-align: center;
-  color: white;
+  color: #ffffff;
   background: rgba(0, 0, 0, 0.2);
   backdrop-filter: blur(10px);
 }

@@ -28,15 +28,15 @@ services:
       dockerfile: Dockerfile
     container_name: atc_analytics_frontend
     ports:
-      - "3001:3001"
+      - "3002:3001"
     environment:
-      - REACT_APP_API_URL=/analitic
-      - PUBLIC_URL=/analitic
+      - REACT_APP_API_URL=http://localhost:8001
+      - PUBLIC_URL=
       - PORT=3001
       - HOST=0.0.0.0
       - WATCHPACK_POLLING=true
       - DANGEROUSLY_DISABLE_HOST_CHECK=true
-      - WDS_SOCKET_PORT=3001
+      - WDS_SOCKET_PORT=3002
     volumes:
       - ./frontend:/app
       - /app/node_modules
@@ -54,7 +54,7 @@ services:
       dockerfile: Dockerfile
     container_name: atc_analytics_backend
     ports:
-      - "8000:8000"
+      - "8001:8000"
     environment:
       - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:${POSTGRES_PORT}/${POSTGRES_DB}
       - LOCAL_DATABASE_URL=postgresql://atc_local:atc_local_password@local_db:5432/atc_local
