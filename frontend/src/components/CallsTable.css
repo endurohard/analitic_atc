@@ -11,8 +11,8 @@
 .search-container {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 10px 12px;
+  gap: 10px;
+  padding: 12px 16px;
   background: var(--bg-elevated);
   border-bottom: 1px solid var(--border-muted);
   flex-shrink: 0;
@@ -20,13 +20,13 @@
 
 .search-input {
   flex: 1;
-  padding: 7px 12px;
-  border: 1px solid var(--border-strong);
-  border-radius: var(--radius-xs);
+  padding: 8px 14px;
+  border: 1px solid var(--border-muted);
+  border-radius: var(--radius-md);
   font-size: 13px;
-  background: var(--bg-input);
+  background: var(--bg-canvas);
   color: var(--text-primary);
-  transition: all 0.3s;
+  transition: all 0.2s;
 }
 
 .search-input:focus {
@@ -130,25 +130,25 @@
 }
 
 .calls-table th {
-  padding: 8px 10px;
+  padding: 10px 12px;
   text-align: left;
   font-size: 11px;
-  font-weight: 600;
-  color: var(--text-muted);
+  font-weight: var(--fw-medium);
+  color: var(--text-subtle);
   white-space: nowrap;
   position: relative;
   min-width: 50px;
   user-select: none;
-  text-transform: uppercase;
-  letter-spacing: 0.3px;
+  letter-spacing: 0.4px;
+  border-bottom: 1px solid var(--border-muted);
 }
 
 .calls-table th:hover {
-  background-color: var(--bg-hover);
+  color: var(--text-secondary);
 }
 
 .calls-table td {
-  padding: 7px 10px;
+  padding: 10px 12px;
   border-bottom: 1px solid var(--border-muted);
   font-size: 13px;
   color: var(--text-primary);
@@ -156,9 +156,16 @@
   width: auto;
 }
 
+.calls-table tbody tr {
+  transition: background-color var(--transition-fast);
+}
+
 .calls-table tbody tr:hover {
   background-color: var(--bg-row-hover);
-  transition: background-color 0.15s;
+}
+
+.calls-table tbody tr:last-child td {
+  border-bottom: none;
 }
 
 .calls-table tbody tr.table-row {
@@ -166,9 +173,11 @@
 }
 
 .number-cell {
-  color: var(--accent-primary);
-  font-weight: 500;
+  color: var(--text-primary);
+  font-weight: var(--fw-semibold);
   font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.2px;
 }
 
 .duration-cell {
@@ -199,45 +208,58 @@
   cursor: not-allowed;
 }
 
-.status-badge {
+.status-badge,
+.type-badge {
   padding: 3px 10px;
-  border-radius: 10px;
+  border-radius: var(--radius-xs);
   font-size: 11px;
   font-weight: 500;
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  line-height: 1.4;
+  border: 1px solid transparent;
+  letter-spacing: 0.1px;
+}
+
+.status-badge::before,
+.type-badge::before {
+  content: '';
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: 0.9;
 }
 
 .status-answered {
-  background-color: var(--success-bg);
-  color: var(--success);
+  background-color: var(--accent-mint-soft);
+  border-color: var(--accent-mint);
+  color: var(--accent-mint);
 }
 
 .status-not-answered {
-  background-color: var(--danger-bg);
-  color: var(--danger);
+  background-color: var(--accent-warning-soft);
+  border-color: var(--accent-warning);
+  color: var(--accent-warning);
 }
 
 .status-busy {
-  background-color: var(--warning-bg);
-  color: var(--warning);
-}
-
-.type-badge {
-  padding: 3px 10px;
-  border-radius: 10px;
-  font-size: 11px;
-  font-weight: 500;
-  display: inline-block;
+  background-color: var(--accent-lavender-soft);
+  border-color: var(--accent-lavender);
+  color: var(--accent-lavender);
 }
 
 .type-incoming {
-  background-color: var(--info-bg);
-  color: var(--info);
+  background-color: var(--accent-primary-soft);
+  border-color: var(--accent-primary);
+  color: var(--accent-primary);
 }
 
 .type-outgoing {
-  background-color: var(--purple-bg);
-  color: var(--purple);
+  background-color: var(--accent-lavender-soft);
+  border-color: var(--accent-lavender);
+  color: var(--accent-lavender);
 }
 
 .action-buttons {
@@ -337,26 +359,28 @@
 
 .pagination-btn {
   padding: 4px 10px;
-  border: 1px solid var(--border-strong);
-  background: var(--bg-input);
-  color: var(--text-primary);
-  border-radius: var(--radius-xs);
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--text-secondary);
+  border-radius: var(--radius-sm);
   cursor: pointer;
   font-size: 12px;
   transition: all 0.2s ease;
-  min-width: 32px;
+  min-width: 30px;
+  height: 28px;
   text-align: center;
+  font-weight: var(--fw-medium);
 }
 
 .pagination-btn:hover:not(:disabled):not(.active) {
-  border-color: var(--accent-primary);
+  background: var(--accent-primary-soft);
   color: var(--accent-primary);
 }
 
 .pagination-btn.active {
-  background: var(--btn-primary-bg);
-  color: var(--btn-primary-text);
-  border-color: var(--btn-primary-bg);
+  background: var(--accent-primary-soft);
+  color: var(--accent-primary);
+  border-color: var(--accent-primary);
 }
 
 .pagination-btn:disabled {

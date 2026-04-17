@@ -1,130 +1,141 @@
-.statistics-grid {
+.stats-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
   grid-template-rows: repeat(2, 1fr);
-  gap: 4px;
-  margin-bottom: 0;
-  padding: 0;
+  gap: 10px;
   width: 100%;
   height: 100%;
+  padding: 12px;
+  box-sizing: border-box;
 }
 
-.stat-card {
-  background: transparent;
-  border-radius: 0;
-  padding: 0;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  box-shadow: none;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  border: none;
+.kpi-card {
   position: relative;
-  overflow: hidden;
-  min-height: 80px;
-  height: 100%;
-  width: 100%;
-}
-
-.stat-card:hover {
-  transform: scale(1.05);
-}
-
-/* ApexCharts стили */
-.stat-card .apexcharts-canvas {
-  margin: 0 auto;
-  max-width: 100%;
-  max-height: 100%;
-}
-
-.stat-card .apexcharts-text {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', sans-serif !important;
-}
-
-/* Адаптация для очень узких контейнеров */
-.stat-card > div {
-  width: 100%;
-  height: 100%;
   display: flex;
+  flex-direction: column;
+  align-items: flex-start;
   justify-content: center;
+  gap: 4px;
+  padding: 14px 16px;
+  background: var(--bg-canvas);
+  border: 1px solid var(--border-muted);
+  border-radius: var(--radius-lg);
+  cursor: pointer;
+  overflow: hidden;
+  text-align: left;
+  color: var(--text-primary);
+  font-family: inherit;
+  transition: transform var(--transition-fast), border-color var(--transition-fast), box-shadow var(--transition-fast);
+  animation: kpiFadeIn 0.45s ease-out both;
+}
+
+.kpi-card:nth-child(1) { animation-delay: 0.05s; }
+.kpi-card:nth-child(2) { animation-delay: 0.1s; }
+.kpi-card:nth-child(3) { animation-delay: 0.15s; }
+.kpi-card:nth-child(4) { animation-delay: 0.2s; }
+
+.kpi-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(135deg, var(--kpi-accent-soft) 0%, transparent 55%);
+  opacity: 0.9;
+}
+
+.kpi-card:hover {
+  transform: translateY(-2px);
+  border-color: var(--kpi-accent);
+  box-shadow: 0 6px 20px -8px var(--kpi-accent);
+}
+
+.kpi-card:focus-visible {
+  outline: 2px solid var(--kpi-accent);
+  outline-offset: 2px;
+}
+
+.kpi-icon {
+  position: relative;
+  display: inline-flex;
   align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: var(--radius-sm);
+  background: var(--kpi-accent-soft);
+  color: var(--kpi-accent);
+  margin-bottom: 2px;
 }
 
-/* Улучшенная анимация при загрузке */
-@keyframes fadeInUp {
-  from {
-    opacity: 0;
-    transform: translateY(20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+.kpi-value {
+  position: relative;
+  font-size: 22px;
+  font-weight: var(--fw-semibold);
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-primary);
 }
 
-.stat-card {
-  animation: fadeInUp 0.5s ease-out;
+.kpi-label {
+  position: relative;
+  font-size: var(--fs-12);
+  font-weight: var(--fw-medium);
+  color: var(--text-secondary);
 }
 
-.stat-card:nth-child(1) {
-  animation-delay: 0.1s;
+.kpi-hint {
+  position: relative;
+  font-size: 10px;
+  font-weight: var(--fw-medium);
+  color: var(--kpi-accent);
+  letter-spacing: 0.2px;
 }
 
-.stat-card:nth-child(2) {
-  animation-delay: 0.2s;
+.tone-mint {
+  --kpi-accent: var(--accent-mint);
+  --kpi-accent-soft: var(--accent-mint-soft);
+}
+.tone-warning {
+  --kpi-accent: var(--accent-warning);
+  --kpi-accent-soft: var(--accent-warning-soft);
+}
+.tone-primary {
+  --kpi-accent: var(--accent-primary);
+  --kpi-accent-soft: var(--accent-primary-soft);
+}
+.tone-lavender {
+  --kpi-accent: var(--accent-lavender);
+  --kpi-accent-soft: var(--accent-lavender-soft);
 }
 
-.stat-card:nth-child(3) {
-  animation-delay: 0.3s;
+@keyframes kpiFadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
-.stat-card:nth-child(4) {
-  animation-delay: 0.4s;
-}
-
-/* Tablet */
+/* Compact layout when section gets short/narrow */
 @media (max-width: 1024px) {
-  .statistics-grid {
-    grid-template-columns: repeat(2, 1fr);
-    grid-template-rows: repeat(2, 1fr);
-    gap: 3px;
-  }
-
-  .stat-card {
-    padding: 0;
-    min-height: 70px;
-  }
+  .stats-grid { padding: 10px; gap: 8px; }
+  .kpi-card { padding: 12px 14px; }
+  .kpi-value { font-size: 20px; }
 }
 
-/* Mobile */
 @media (max-width: 768px) {
-  .statistics-grid {
-    grid-template-columns: repeat(2, 1fr);
-    grid-template-rows: repeat(2, 1fr);
-    gap: 2px;
-  }
-
-  .stat-card {
-    padding: 0;
-    min-height: 60px;
-  }
+  .stats-grid { gap: 8px; padding: 8px; }
+  .kpi-card { padding: 10px 12px; border-radius: var(--radius-md); }
+  .kpi-icon { width: 26px; height: 26px; }
+  .kpi-value { font-size: 18px; }
+  .kpi-label { font-size: var(--fs-11); }
+  .kpi-hint { font-size: 9px; }
 }
 
-/* Small Mobile */
 @media (max-width: 480px) {
-  .statistics-grid {
-    grid-template-columns: repeat(2, 1fr);
-    grid-template-rows: repeat(2, 1fr);
-    gap: 2px;
-  }
-
-  .stat-card {
-    padding: 0;
-    min-height: 50px;
-  }
+  .stats-grid { gap: 6px; padding: 6px; }
+  .kpi-card { padding: 8px 10px; }
+  .kpi-value { font-size: 16px; }
 }
 
-/* Статистика по маппингам */
+/* Mapping stats kept from previous layout */
 .mapping-stats-section {
   margin-top: var(--space-6);
   padding: var(--space-5);
@@ -212,24 +223,11 @@
   color: var(--text-primary);
 }
 
-.mapping-stat-value.success {
-  color: var(--status-answered);
-}
-
-.mapping-stat-value.danger {
-  color: var(--status-missed);
-}
+.mapping-stat-value.success { color: var(--status-answered); }
+.mapping-stat-value.danger { color: var(--status-missed); }
 
 @media (max-width: 768px) {
-  .mapping-stats-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .mapping-stat-card {
-    padding: 12px;
-  }
-
-  .mapping-stat-value {
-    font-size: 20px;
-  }
+  .mapping-stats-grid { grid-template-columns: 1fr; }
+  .mapping-stat-card { padding: 12px; }
+  .mapping-stat-value { font-size: 20px; }
 }
