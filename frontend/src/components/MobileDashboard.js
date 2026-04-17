@@ -247,8 +247,11 @@ const MobileDashboard = ({ user, organization, onLogout, onChangeOrganization })
     if (!phone || phoneMappings.length === 0) return null;
     const normalizedPhone = String(phone).replace(/\D/g, '');
     const mapping = phoneMappings.find(m => {
-      const mappingPhone = String(m.phone_number).replace(/\D/g, '');
-      return normalizedPhone.includes(mappingPhone) || mappingPhone.includes(normalizedPhone);
+      const candidates = String(m.phone_number)
+        .split(/[,;\s]+/)
+        .map(s => s.replace(/\D/g, ''))
+        .filter(Boolean);
+      return candidates.some(c => normalizedPhone.includes(c) || c.includes(normalizedPhone));
     });
     return mapping ? mapping.display_name : null;
   }, [phoneMappings]);

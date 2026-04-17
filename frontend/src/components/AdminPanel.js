@@ -597,18 +597,18 @@ const AdminPanel = ({ user, onLogout, onBack }) => {
                         {/* Секция маппингов телефонов */}
                         <div style={{ marginTop: '20px', padding: '15px', border: '1px solid #ddd', borderRadius: '4px' }}>
                           <h4>Маппинги телефонных номеров</h4>
-                          <small>Замените внутренние номера на понятные названия</small>
+                          <small>Замените внутренние номера на понятные названия. Можно указать несколько номеров через запятую (например: 8230, 8232, 8235), чтобы один оператор объединял звонки со всех своих внутренних номеров.</small>
 
                           {/* Форма добавления нового маппинга */}
                           <div style={{ marginTop: '15px', marginBottom: '15px' }}>
                             <div style={{ display: 'flex', gap: '10px', alignItems: 'flex-end' }}>
                               <div className="form-group" style={{ flex: 1, margin: 0 }}>
-                                <label style={{ fontSize: '12px' }}>Номер телефона</label>
+                                <label style={{ fontSize: '12px' }}>Номер(а) телефона</label>
                                 <input
                                   type="text"
                                   value={newMapping.phone_number}
                                   onChange={(e) => setNewMapping({ ...newMapping, phone_number: e.target.value })}
-                                  placeholder="8240"
+                                  placeholder="8240 или 8230, 8232, 8235"
                                   style={{ width: '100%' }}
                                 />
                               </div>

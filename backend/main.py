@@ -685,37 +685,60 @@ def get_statistics_by_mapping(
                 time_filter = 'AND "createdAt" >= :start_time'
                 params["start_time"] = start_time
 
-        # Собираем статистику для каждого маппинга
-        results = []
-        for mapping in phone_mappings:
-            # Нормализуем номер из маппинга
-            mapping_phone = str(mapping.phone_number).replace('+', '').replace('-', '').replace(' ', '')
+        import re
 
-            # SQL запрос для подсчета звонков на этот номер
+        def split_phones(raw):
+            parts = re.split(r'[,;\s]+', str(raw or ''))
+            return [re.sub(r'\D', '', p) for p in parts if re.sub(r'\D', '', p)]
+
+        # Группируем маппинги по display_name — одно имя может иметь
+        # несколько записей (или несколько номеров через запятую в одной).
+        grouped = {}
+        for mapping in phone_mappings:
+            key = mapping.display_name
+            if key not in grouped:
+                grouped[key] = {
+                    "id": mapping.id,
+                    "phone_number": mapping.phone_number,
+                    "display_name": mapping.display_name,
+                    "color": mapping.color,
+                    "phones": set(),
+                }
+            for ph in split_phones(mapping.phone_number):
+                grouped[key]["phones"].add(ph)
+
+        results = []
+        for entry in grouped.values():
+            phones = list(entry["phones"])
+            if not phones:
+                continue
+
+            conditions = []
+            params_with_phones = params.copy()
+            for idx, ph in enumerate(phones):
+                key = f"phone_{idx}"
+                conditions.append(f"callto1 LIKE '%' || :{key} || '%' OR callto2 LIKE '%' || :{key} || '%'")
+                params_with_phones[key] = ph
+
+            where_phones = " OR ".join(conditions)
             query = text(f"""
                 SELECT
                     COUNT(*) as total_calls,
                     SUM(CASE WHEN status IN ('NO ANSWER', 'NOANSWER') THEN 1 ELSE 0 END) as missed_calls
                 FROM cdrs
                 WHERE "orgId" = :org_id
-                    AND (
-                        callto1 LIKE '%' || :phone || '%'
-                        OR callto2 LIKE '%' || :phone || '%'
-                    )
+                    AND ({where_phones})
                     {time_filter}
             """)
 
-            params_with_phone = params.copy()
-            params_with_phone["phone"] = mapping_phone
+            result = db.execute(query, params_with_phones).first()
 
-            result = db.execute(query, params_with_phone).first()
-
-            if result and result[0] > 0:  # Только если есть звонки
+            if result and result[0] > 0:
                 results.append({
-                    "id": mapping.id,
-                    "phone_number": mapping.phone_number,
-                    "display_name": mapping.display_name,
-                    "color": mapping.color,
+                    "id": entry["id"],
+                    "phone_number": entry["phone_number"],
+                    "display_name": entry["display_name"],
+                    "color": entry["color"],
                     "total_calls": result[0] or 0,
                     "missed_calls": result[1] or 0,
                     "answered_calls": (result[0] or 0) - (result[1] or 0)
