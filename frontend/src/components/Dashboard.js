@@ -7,6 +7,7 @@ import 'react-resizable/css/styles.css';
 import './Dashboard.css';
 import CallsTable from './CallsTable';
 import Statistics from './Statistics';
+import MissedCallsNotification from './MissedCallsNotification';
 
 const Dashboard = ({ user, organization, onLogout, onChangeOrganization }) => {
   const navigate = useNavigate();
@@ -69,10 +70,12 @@ const Dashboard = ({ user, organization, onLogout, onChangeOrganization }) => {
     return () => clearInterval(interval);
   }, [organization, timeRange, refreshInterval, callType, appliedStartDate, appliedEndDate, appliedCustomDates]);
 
-  // Fetch only calls when page/perPage/search changes
+  // Fetch only calls when page/perPage/search changes + periodic refresh
   useEffect(() => {
     fetchCalls();
-  }, [callsPage, callsPerPage, callsSearchQuery]);
+    const interval = setInterval(fetchCalls, refreshInterval * 1000);
+    return () => clearInterval(interval);
+  }, [callsPage, callsPerPage, callsSearchQuery, organization, timeRange, refreshInterval, callType, appliedStartDate, appliedEndDate, appliedCustomDates]);
 
   // Reset page to 1 when filters change
   useEffect(() => {
@@ -248,11 +251,6 @@ const Dashboard = ({ user, organization, onLogout, onChangeOrganization }) => {
   const fetchData = async () => {
     setLoading(true);
     try {
-      // Загружаем звонки с серверной пагинацией
-      const callsParams = buildCallsParams(callsPage, callsPerPage, callsSearchQuery);
-      const callsResponse = await axios.get(`${API_URL}/api/calls`, { params: callsParams });
-      setCalls(callsResponse.data.calls || []);
-      setCallsTotalCount(callsResponse.data.total || 0);
 
       // Загружаем необработанные звонки
       const unprocessedParams = { orgId: organization.orgId, limit: 100, timeRange: timeRange };
@@ -619,6 +617,8 @@ const Dashboard = ({ user, organization, onLogout, onChangeOrganization }) => {
           </div>
         </div>
       )}
+
+      <MissedCallsNotification organization={organization} refreshInterval={refreshInterval} />
     </div>
   );
 };

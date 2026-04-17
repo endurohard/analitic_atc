@@ -45,6 +45,7 @@ services:
     networks:
       - atc_network
       - infobotit_bot_app_net
+    restart: unless-stopped
 
   # Backend - FastAPI приложение
   backend:

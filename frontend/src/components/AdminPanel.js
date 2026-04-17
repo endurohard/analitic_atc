@@ -731,10 +731,20 @@ const AdminPanel = ({ user, onLogout, onBack }) => {
                         <div className="org-info">
                           <div className="org-id">Org ID: <strong>{org.orgId}</strong></div>
                           <div className="org-name">{org.name}</div>
-                          <div className="org-description">{org.description || 'Без описания'}</div>
-                          <div className="org-meta">
-                            Создана: {new Date(org.created_at).toLocaleDateString()}
+                          <div className="org-credentials" style={{ fontSize: '13px', marginTop: '4px' }}>
+                            <span style={{ color: '#666' }}>Логин: </span>
+                            <strong>{org.credential_username || '—'}</strong>
+                            {' | '}
+                            <span style={{ color: '#666' }}>Пароль: </span>
+                            {org.credential_password ? (
+                              <strong style={{ color: '#52c41a' }}>{org.credential_password}</strong>
+                            ) : org.password_changed ? (
+                              <span style={{ color: '#faad14', fontStyle: 'italic' }}>изменён</span>
+                            ) : (
+                              <span style={{ color: '#999' }}>—</span>
+                            )}
                           </div>
+                          <div className="org-description">{org.description || 'Без описания'}</div>
                         </div>
                         <div className="org-actions">
                           <button

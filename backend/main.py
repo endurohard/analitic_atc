@@ -42,6 +42,57 @@ os.makedirs(UPLOAD_DIR, exist_ok=True)
 app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 app.mount("/api/uploads", StaticFiles(directory="uploads"), name="api-uploads")
 
+@app.on_event("startup")
+def ensure_org_credentials():
+    """Auto-create missing org credentials on startup so they survive volume resets."""
+    from database import SessionLocal, LocalSessionLocal
+    db = SessionLocal()
+    local_db = LocalSessionLocal()
+    try:
+        # Superadmin
+        if not local_db.query(models.OrgCredential).filter(
+            models.OrgCredential.username == "itadmin"
+        ).first():
+            local_db.add(models.OrgCredential(
+                org_id=0, username="itadmin",
+                password_hash=pwd_context.hash("admin"),
+                company_name="Superadmin", is_active=True
+            ))
+            local_db.flush()
+            import logging
+            logging.warning("[STARTUP] Created superadmin: itadmin / admin")
+
+        # Org credentials
+        created = 0
+        all_orgs = db.query(models.Org).all()
+        for org in all_orgs:
+            if not local_db.query(models.OrgCredential).filter(
+                models.OrgCredential.org_id == org.id
+            ).first():
+                username = org.title.lower().replace(" ", "")
+                if local_db.query(models.OrgCredential).filter(
+                    models.OrgCredential.username == username
+                ).first():
+                    username = f"{username}_{org.id}"
+                local_db.add(models.OrgCredential(
+                    org_id=org.id, username=username,
+                    password_hash=pwd_context.hash(username),
+                    company_name=org.title, is_active=True
+                ))
+                created += 1
+
+        local_db.commit()
+        if created:
+            import logging
+            logging.warning(f"[STARTUP] Auto-created {created} org credentials")
+    except Exception as e:
+        local_db.rollback()
+        import logging
+        logging.error(f"[STARTUP] Error: {e}")
+    finally:
+        db.close()
+        local_db.close()
+
 @app.get("/api/recordings/{filename:path}")
 async def get_recording(filename: str):
     """
@@ -861,14 +912,27 @@ def admin_get_all_organizations(db: Session = Depends(get_db), local_db: Session
         for org in orgs:
             # Проверяем, есть ли credentials для организации (локальная БД)
             credential = local_db.query(models.OrgCredential).filter(models.OrgCredential.org_id == org.id).first()
+
+            # Определяем пароль: проверяем совпадает ли хеш с паролем по умолчанию (username)
+            default_password = None
+            password_changed = False
+            if credential:
+                default_pw = credential.username
+                if pwd_context.verify(default_pw, credential.password_hash):
+                    default_password = default_pw
+                else:
+                    password_changed = True
+
             result.append({
                 "id": org.id,
-                "orgId": org.id,  # В таблице orgs id и есть orgId
+                "orgId": org.id,
                 "name": org.title,
                 "description": f"Telegram Chat ID: {org.chatId}",
                 "credential_username": credential.username if credential else None,
+                "credential_password": default_password,
+                "password_changed": password_changed,
                 "logo_url": credential.logo_url if credential else None,
-                "created_at": None,  # В таблице orgs нет этих полей
+                "created_at": None,
                 "updated_at": None
             })
         return result
@@ -1452,6 +1516,70 @@ def update_organization_column(org_id: int, column_id: int, column_data: dict, l
 # ============================================
 
 
+
+
+@app.get("/api/missed-notifications")
+def get_missed_notifications(
+    orgId: int,
+    db: Session = Depends(get_db)
+):
+    """
+    Получение активных пропущенных звонков для панели уведомлений.
+    Возвращает пропущенные входящие, которые ещё не обработаны:
+    - Нет исходящего перезвона оператором
+    - Нет повторного входящего звонка от клиента с ответом
+    Берём только за последние 24 часа.
+    """
+    try:
+        from datetime import datetime, timedelta
+
+        since = datetime.now() - timedelta(minutes=15)
+
+        query = text("""
+            SELECT
+                c.id,
+                cu.phone,
+                c."timeStart",
+                c."createdAt"
+            FROM cdrs c
+            JOIN customers cu ON c."customerId" = cu.id
+            WHERE c."orgId" = :org_id
+                AND c.type = 'Inbound'
+                AND c.status IN ('NO ANSWER', 'NOANSWER')
+                AND c."finishStatus" = 'noAnswer'
+                AND c."createdAt" >= :since
+                AND NOT EXISTS (
+                    SELECT 1 FROM cdrs c2
+                    WHERE c2."orgId" = c."orgId"
+                        AND c2."customerId" = c."customerId"
+                        AND c2.type = 'Outbound'
+                        AND c2."createdAt" > c."createdAt"
+                )
+                AND NOT EXISTS (
+                    SELECT 1 FROM cdrs c3
+                    WHERE c3."orgId" = c."orgId"
+                        AND c3."customerId" = c."customerId"
+                        AND c3.type = 'Inbound'
+                        AND c3.status = 'ANSWERED'
+                        AND c3."createdAt" > c."createdAt"
+                )
+            ORDER BY c."timeStart" DESC
+        """)
+
+        result = db.execute(query, {"org_id": orgId, "since": since})
+
+        notifications = []
+        for row in result:
+            notifications.append({
+                "id": row[0],
+                "phone": row[1],
+                "timeStart": row[2].isoformat() if row[2] else None,
+                "createdAt": row[3].isoformat() if row[3] else None
+            })
+
+        return notifications
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)

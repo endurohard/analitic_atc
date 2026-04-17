@@ -4,6 +4,7 @@ import axios from 'axios';
 import Chart from 'react-apexcharts';
 import './MobileDashboard.css';
 import AudioPlayer from './AudioPlayer';
+import MissedCallsNotification from './MissedCallsNotification';
 
 // Мемоизированный компонент карточки звонка с accordion
 const CallCard = React.memo(({ call, API_URL, formatPhoneNumber, formatDateTime, formatDuration, mappingName, isUnprocessed }) => {
@@ -942,7 +943,9 @@ const MobileDashboard = ({ user, organization, onLogout, onChangeOrganization })
       <div className="mobile-content">
         {renderContent()}
       </div>
+      <MissedCallsNotification organization={organization} refreshInterval={refreshInterval} />
     </div>
+
   );
 };
 
