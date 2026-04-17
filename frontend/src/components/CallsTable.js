@@ -48,8 +48,19 @@ const CallsTable = ({
     return mapping ? mapping.display_name : null;
   };
 
-  const hasCallto1Mapping = calls.some(call => call.callto1 && getPhoneMappingName(call.callto1));
-  const hasCallto2Mapping = calls.some(call => call.callto2 && getPhoneMappingName(call.callto2));
+  const hasCallto1 = calls.some(call => call.callto1);
+  const hasCallto2 = calls.some(call => call.callto2);
+  const hasOperator = hasCallto1 || hasCallto2;
+
+  const formatOperator = (call) => {
+    const v1 = call.callto1;
+    const v2 = call.callto2;
+    const fmt = (v) => getPhoneMappingName(v) || v;
+    if (!v1 && !v2) return '-';
+    if (!v2 || v1 === v2) return fmt(v1);
+    if (!v1) return fmt(v2);
+    return `${fmt(v1)} → ${fmt(v2)}`;
+  };
 
   const formatPhoneNumber = (phone) => {
     if (!phone) return '';
@@ -433,16 +444,10 @@ const CallsTable = ({
                     Номер
                     <div className="column-resizer" onMouseDown={(e) => handleMouseDown('number', e)} />
                   </th>
-                  {hasCallto1Mapping && (
-                    <th style={{ width: columnWidths['callto1'] || 'auto', position: 'relative' }}>
-                      Внутр. 1
-                      <div className="column-resizer" onMouseDown={(e) => handleMouseDown('callto1', e)} />
-                    </th>
-                  )}
-                  {hasCallto2Mapping && (
-                    <th style={{ width: columnWidths['callto2'] || 'auto', position: 'relative' }}>
-                      Внутр. 2
-                      <div className="column-resizer" onMouseDown={(e) => handleMouseDown('callto2', e)} />
+                  {hasOperator && (
+                    <th style={{ width: columnWidths['operator'] || 'auto', position: 'relative' }}>
+                      Оператор
+                      <div className="column-resizer" onMouseDown={(e) => handleMouseDown('operator', e)} />
                     </th>
                   )}
                   <th style={{ width: columnWidths['type'] || 'auto', position: 'relative' }}>
@@ -492,11 +497,8 @@ const CallsTable = ({
                         <span className="mapping-name"> ({getPhoneMappingName(call.number)})</span>
                       )}
                     </td>
-                    {hasCallto1Mapping && (
-                      <td>{getPhoneMappingName(call.callto1) || '-'}</td>
-                    )}
-                    {hasCallto2Mapping && (
-                      <td>{getPhoneMappingName(call.callto2) || '-'}</td>
+                    {hasOperator && (
+                      <td>{formatOperator(call)}</td>
                     )}
                     <td>
                       <span className={`type-badge ${getTypeClass(call.type)}`}>{getTypeLabel(call.type)}</span>
